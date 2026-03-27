@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>长城拉链报价工具</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f0e0c; --surface: #1a1915; --surface2: #232218; --surface3: #2c2b20;
+    --border: #3a3828; --border-light: #4a4840;
+    --gold: #c9a227; --gold-light: #e0b84a; --gold-dim: #7a5f0f;
+    --text: #e8e4d9; --text-dim: #9a9480; --text-faint: #5a5648;
+    --red: #c94040;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Serif SC', serif; min-height: 100vh; overflow-x: hidden; }
+
+  /* TOP BAR */
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; height: 60px; position: sticky; top: 0; z-index: 100; }
+  .logo { font-size: 18px; font-weight: 700; color: var(--gold); letter-spacing: 1px; margin-right: auto; display: flex; align-items: center; gap: 10px; }
+  .logo-hex { width: 28px; height: 28px; background: var(--gold); clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); display: flex; align-items: center; justify-content: center; font-size: 12px; color: #0f0e0c; font-weight: 900; }
+  .tab-btn { height: 60px; padding: 0 28px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-dim); font-family: 'Noto Serif SC', serif; font-size: 14px; cursor: pointer; transition: all .2s; letter-spacing: .5px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); background: rgba(201,162,39,.05); }
+
+  /* PANELS */
+  .panel { display: none; padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+  .panel.active { display: block; }
+
+  /* SETTINGS */
+  .type-tabs { display: flex; gap: 4px; margin-bottom: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 4px; width: fit-content; }
+  .type-tab { padding: 6px 18px; border-radius: 5px; border: none; background: transparent; color: var(--text-dim); font-family: 'Noto Serif SC', serif; font-size: 13px; cursor: pointer; transition: all .2s; }
+  .type-tab.active { background: var(--surface3); color: var(--gold); border: 1px solid var(--border); }
+  .type-tab:hover:not(.active) { color: var(--text); }
+  .type-panel { display: none; }
+  .type-panel.active { display: block; }
+  .notice { background: rgba(201,162,39,.07); border: 1px solid rgba(201,162,39,.2); border-radius: 6px; padding: 12px 16px; font-size: 12px; color: var(--text-dim); line-height: 1.8; margin-bottom: 20px; }
+  .notice strong { color: var(--gold); }
+  .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: auto; margin-bottom: 8px; }
+  .stbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .stbl th { background: var(--surface2); color: var(--text-dim); font-weight: 500; padding: 9px 10px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .stbl th:first-child,.stbl td:first-child { text-align: left; padding-left: 14px; }
+  .stbl td { padding: 5px 7px; border-bottom: 1px solid var(--border); text-align: center; vertical-align: middle; }
+  .stbl tr:last-child td { border-bottom: none; }
+  .stbl tr:hover td { background: rgba(255,255,255,.02); }
+  .ni { background: var(--surface3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 3px 5px; width: 78px; text-align: right; transition: border-color .2s; }
+  .ni:focus { outline: none; border-color: var(--gold); background: #25231a; }
+  .ni.w60 { width: 60px; }
+  .ni.wfull { width: 100%; font-size: 12px; }
+
+  /* QUOTE TOP */
+  .quote-top { display: grid; grid-template-columns: 1fr 180px 200px; gap: 16px; margin-bottom: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; }
+  .cg { display: flex; flex-direction: column; gap: 6px; }
+  .clabel { font-size: 11px; color: var(--text-faint); letter-spacing: .5px; font-family: 'JetBrains Mono', monospace; }
+  .cinput { background: var(--surface3); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-family: 'Noto Serif SC', serif; font-size: 14px; padding: 9px 12px; transition: border-color .2s; width: 100%; }
+  .cinput:focus { outline: none; border-color: var(--gold); }
+  select.cinput { cursor: pointer; }
+
+  /* ITEM CARD */
+  .quote-items { display: flex; flex-direction: column; gap: 20px; }
+  .qitem { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color .2s; }
+  .qitem:hover { border-color: var(--border-light); }
+  .qitem-head { background: var(--surface2); padding: 12px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+  .inum { width: 26px; height: 26px; background: var(--gold-dim); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--gold-light); font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+  .item-label { flex: 1; font-size: 14px; color: var(--gold-light); font-weight: 600; letter-spacing: .3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-rm { background: transparent; border: 1px solid var(--red); color: var(--red); border-radius: 5px; padding: 4px 12px; font-size: 12px; cursor: pointer; transition: all .2s; flex-shrink: 0; }
+  .btn-rm:hover { background: var(--red); color: white; }
+
+  /* SELECTOR GRID */
+  .sel-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border); background: rgba(201,162,39,.02); }
+  .sel-grp { display: flex; flex-direction: column; gap: 5px; }
+  .sel-lbl { font-size: 10px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; letter-spacing: .5px; text-transform: uppercase; }
+  .sel { background: var(--surface3); border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-family: 'Noto Serif SC', serif; font-size: 13px; padding: 7px 28px 7px 10px; width: 100%; cursor: pointer; transition: border-color .2s; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c9a227'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+  .sel:focus { outline: none; border-color: var(--gold); }
+  .sel:disabled { color: var(--text-faint); opacity: .45; cursor: not-allowed; }
+  .sel option { background: #232218; }
+  .sel-empty { background: var(--surface3); border: 1px dashed var(--border); border-radius: 5px; padding: 7px 10px; font-size: 12px; color: var(--text-faint); font-style: italic; }
+
+  /* ITEM BODY */
+  .qitem-body { padding: 16px 18px; }
+  .size-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .srow { display: grid; grid-template-columns: 110px 110px 1fr 1fr 34px; gap: 10px; align-items: center; background: var(--surface3); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; }
+  .sl { font-size: 10px; color: var(--text-faint); font-family: 'JetBrains Mono', monospace; letter-spacing: .3px; margin-bottom: 3px; }
+  .sinput { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 5px 8px; width: 100%; text-align: right; transition: border-color .2s; }
+  .sinput:focus { outline: none; border-color: var(--gold); }
+  .pdis { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; text-align: right; height: 32px; display: flex; align-items: center; justify-content: flex-end; }
+  .pcny { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: var(--gold-light); }
+  .pusd { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); }
+  .btn-rms { background: transparent; border: none; color: var(--text-faint); cursor: pointer; font-size: 18px; line-height: 1; padding: 4px; border-radius: 4px; transition: all .2s; }
+  .btn-rms:hover { color: var(--red); background: rgba(201,64,64,.1); }
+
+  .qitem-foot { display: flex; align-items: center; gap: 14px; padding-top: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .fee-grp { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+  .finput { background: var(--surface3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 5px 8px; width: 90px; text-align: right; }
+  .finput:focus { outline: none; border-color: var(--gold); }
+  .btn-adds { background: transparent; border: 1px dashed var(--border-light); color: var(--text-dim); border-radius: 5px; padding: 5px 14px; font-size: 12px; cursor: pointer; transition: all .2s; margin-left: auto; }
+  .btn-adds:hover { border-color: var(--gold); color: var(--gold); }
+
+  .itotal { background: linear-gradient(135deg,rgba(201,162,39,.08),rgba(201,162,39,.03)); border: 1px solid rgba(201,162,39,.2); border-radius: 6px; padding: 9px 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+  .itotal-lbl { font-size: 13px; color: var(--text-dim); }
+  .itotal-vals { display: flex; gap: 18px; align-items: baseline; }
+  .tc { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: var(--gold); }
+  .tu { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-dim); }
+
+  .btn-add-item { background: transparent; border: 1px dashed var(--gold-dim); color: var(--gold-dim); border-radius: 8px; padding: 14px; font-family: 'Noto Serif SC', serif; font-size: 14px; cursor: pointer; transition: all .25s; width: 100%; margin-top: 16px; letter-spacing: 1px; }
+  .btn-add-item:hover { border-color: var(--gold); color: var(--gold); background: rgba(201,162,39,.05); }
+
+  .qsum { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-top: 24px; }
+  .qsum-title { font-size: 14px; color: var(--gold); margin-bottom: 16px; letter-spacing: 1px; font-weight: 600; }
+  .srow2 { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .srow2:last-child { border-bottom: none; }
+  .srow2.grand { font-size: 16px; font-weight: 600; color: var(--gold-light); padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--gold-dim); border-bottom: none; }
+  .sv { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+  .sv2 { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-faint); margin-left: 12px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media(max-width:900px){
+    .quote-top { grid-template-columns: 1fr 1fr; }
+    .sel-grid { grid-template-columns: 1fr 1fr; }
+    .srow { grid-template-columns: 1fr 1fr 1fr 1fr 34px; }
+    .panel { padding: 16px; }
+    .topbar { padding: 0 16px; }
+  }
+
+  /* ── MODAL OVERLAY ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.75); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 32px; width: 360px; max-width: 90vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+    animation: modalIn .2s ease;
+  }
+  @keyframes modalIn { from{transform:scale(.95);opacity:0} to{transform:scale(1);opacity:1} }
+  .modal-title { font-size: 18px; font-weight: 700; color: var(--gold); margin-bottom: 6px; }
+  .modal-sub { font-size: 12px; color: var(--text-faint); margin-bottom: 24px; line-height: 1.6; }
+  .modal-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .modal-label { font-size: 11px; color: var(--text-faint); font-family:'JetBrains Mono',monospace; letter-spacing:.5px; }
+  .modal-input {
+    background: var(--surface3); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-family:'Noto Serif SC',serif;
+    font-size: 14px; padding: 10px 14px; width: 100%;
+    transition: border-color .2s;
+  }
+  .modal-input:focus { outline: none; border-color: var(--gold); }
+  .modal-err { font-size: 12px; color: var(--red); margin-bottom: 12px; min-height: 18px; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 4px; }
+  .btn-primary {
+    flex: 1; background: var(--gold); color: #0f0e0c;
+    border: none; border-radius: 6px; padding: 10px;
+    font-family:'Noto Serif SC',serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn-primary:hover { background: var(--gold-light); }
+  .btn-secondary {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); border-radius: 6px; padding: 10px 16px;
+    font-family:'Noto Serif SC',serif; font-size: 14px; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-secondary:hover { border-color: var(--border-light); color: var(--text); }
+
+  /* ── AUTH STATUS BAR ── */
+  .auth-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-left: 16px; padding-left: 16px;
+    border-left: 1px solid var(--border);
+  }
+  .auth-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); flex-shrink:0; }
+  .auth-dot.online { background: #4a9c6e; box-shadow: 0 0 6px #4a9c6e; }
+  .auth-label { font-size: 12px; color: var(--text-faint); white-space: nowrap; }
+  .btn-auth {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); border-radius: 5px; padding: 5px 14px;
+    font-family:'Noto Serif SC',serif; font-size: 12px; cursor: pointer;
+    transition: all .2s; white-space: nowrap;
+  }
+  .btn-auth:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-auth.logout { border-color: var(--red); color: var(--red); }
+  .btn-auth.logout:hover { background: var(--red); color: white; }
+
+  /* ── SETTINGS LOCK OVERLAY ── */
+  .settings-lock {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 60px 20px; text-align: center; gap: 16px;
+  }
+  .lock-icon { font-size: 48px; }
+  .lock-title { font-size: 18px; color: var(--gold); font-weight: 600; }
+  .lock-sub { font-size: 13px; color: var(--text-dim); line-height: 1.6; max-width: 320px; }
+
+  /* ── SAVE STATUS ── */
+  .save-status {
+    font-size: 11px; font-family:'JetBrains Mono',monospace;
+    color: var(--text-faint); margin-left: 8px;
+    transition: color .3s;
+  }
+  .save-status.saving { color: var(--gold); }
+  .save-status.saved { color: #4a9c6e; }
+  .save-status.error { color: var(--red); }
+
+  /* ── FIREBASE CONFIG NOTICE ── */
+  .config-notice {
+    background: rgba(201,64,64,.08); border: 1px solid rgba(201,64,64,.3);
+    border-radius: 8px; padding: 20px 24px; margin-bottom: 20px;
+  }
+  .config-notice h3 { color: var(--red); font-size: 14px; margin-bottom: 8px; }
+  .config-notice p { font-size: 12px; color: var(--text-dim); line-height: 1.8; }
+  .config-notice code { background: var(--surface3); padding: 1px 6px; border-radius: 3px; font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--gold); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><div class="logo-hex">Z</div>温州长城拉链 · 报价工具</div>
+  <button class="tab-btn active" onclick="switchTab('settings',this)">⚙ 价格设置</button>
+  <button class="tab-btn" onclick="switchTab('quote',this)">📋 报价计算</button>
+  <div class="auth-bar">
+    <div class="auth-dot" id="auth-dot"></div>
+    <span class="auth-label" id="auth-label">未登录</span>
+    <span class="save-status" id="save-status"></span>
+    <button class="btn-auth" id="btn-auth" onclick="handleAuthBtn()">管理员登录</button>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="modal-login">
+  <div class="modal">
+    <div class="modal-title">🔐 管理员登录</div>
+    <div class="modal-sub">登录后可编辑价格设置，修改将同步到所有设备。</div>
+    <div class="modal-field">
+      <div class="modal-label">邮箱</div>
+      <input class="modal-input" id="login-email" type="email" placeholder="your@email.com" autocomplete="username">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">密码</div>
+      <input class="modal-input" id="login-pw" type="password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="modal-err" id="login-err"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('modal-login')">取消</button>
+      <button class="btn-primary" onclick="doLogin()">登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal-overlay" id="modal-chpw">
+  <div class="modal">
+    <div class="modal-title">🔑 修改密码</div>
+    <div class="modal-sub">修改后需用新密码登录，请妥善保管。</div>
+    <div class="modal-field">
+      <div class="modal-label">新密码（至少6位）</div>
+      <input class="modal-input" id="chpw-new" type="password" placeholder="输入新密码">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">确认新密码</div>
+      <input class="modal-input" id="chpw-confirm" type="password" placeholder="再次输入新密码"
+        onkeydown="if(event.key==='Enter')doChangePw()">
+    </div>
+    <div class="modal-err" id="chpw-err"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('modal-chpw')">取消</button>
+      <button class="btn-primary" onclick="doChangePw()">确认修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE CONFIG MODAL -->
+<div class="modal-overlay show" id="modal-config">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">⚙ Firebase 配置</div>
+    <div class="modal-sub">首次使用需填入你的 Firebase 配置。完成后此配置会保存在浏览器中，下次打开自动加载。<br><br>
+    没有配置？请参考下方的部署教程。</div>
+    <div class="modal-field">
+      <div class="modal-label">API KEY</div>
+      <input class="modal-input" id="cfg-apikey" placeholder="AIzaSy...">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">AUTH DOMAIN</div>
+      <input class="modal-input" id="cfg-authdomain" placeholder="your-project.firebaseapp.com">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">DATABASE URL</div>
+      <input class="modal-input" id="cfg-dburl" placeholder="https://your-project-default-rtdb.asia-southeast1.firebasedatabase.app">
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">PROJECT ID</div>
+      <input class="modal-input" id="cfg-projectid" placeholder="your-project-id">
+    </div>
+    <div class="modal-err" id="cfg-err"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="skipConfig()">暂时跳过（不同步）</button>
+      <button class="btn-primary" onclick="saveConfig()">连接 Firebase</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="panel active" id="panel-settings">
+  <!-- shown when not logged in -->
+  <div class="settings-lock" id="settings-lock" style="display:none">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title">价格设置需要管理员权限</div>
+    <div class="lock-sub">请点击右上角「管理员登录」按钮，输入密码后即可编辑并同步价格数据。</div>
+    <button class="btn-primary" style="width:160px;margin-top:8px" onclick="handleAuthBtn()">立即登录</button>
+  </div>
+  <!-- shown when logged in -->
+  <div id="settings-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div class="notice" style="margin:0;flex:1">
+        <strong>说明：</strong>所有单价以 <strong>元（含税，运费另计）</strong> 为单位。修改数值后点击「保存到云端」同步所有设备。
+      </div>
+      <div style="display:flex;gap:10px;flex-shrink:0">
+        <button class="btn-secondary" onclick="openModal('modal-chpw')" style="font-size:12px;padding:7px 14px">修改密码</button>
+        <button class="btn-primary" onclick="saveToCloud()" style="width:130px">💾 保存到云端</button>
+      </div>
+    </div>
+    <div class="type-tabs">
+      <button class="type-tab active" onclick="switchTypeTab('metal',this)">金属拉链</button>
+      <button class="type-tab" onclick="switchTypeTab('metaly',this)">金属Y牙</button>
+      <button class="type-tab" onclick="switchTypeTab('nylon',this)">尼龙拉链</button>
+      <button class="type-tab" onclick="switchTypeTab('resin',this)">树脂拉链</button>
+    </div>
+    <div class="type-panel active" id="type-metal"><div id="metal-wrap"></div></div>
+    <div class="type-panel" id="type-metaly"><div id="metaly-wrap"></div></div>
+    <div class="type-panel" id="type-nylon"><div id="nylon-wrap"></div></div>
+    <div class="type-panel" id="type-resin"><div id="resin-wrap"></div></div>
+  </div>
+</div>
+
+<!-- QUOTE -->
+<div class="panel" id="panel-quote">
+  <div class="quote-top">
+    <div class="cg">
+      <div class="clabel">QUOTE TITLE / 报价单名称</div>
+      <input class="cinput" id="qtitle" type="text" placeholder="如：2025年7月 ABC品牌拉链报价">
+    </div>
+    <div class="cg">
+      <div class="clabel">汇率 (人民币→美元)</div>
+      <input class="cinput" id="rate" type="number" value="7.25" step="0.01" min="1" oninput="recalcAll()">
+    </div>
+    <div class="cg">
+      <div class="clabel">显示币种</div>
+      <select class="cinput" id="cmode" onchange="recalcAll()">
+        <option value="both">人民币 + 美元</option>
+        <option value="cny">仅人民币</option>
+        <option value="usd">仅美元</option>
+      </select>
+    </div>
+  </div>
+  <div class="quote-items" id="qitems"></div>
+  <button class="btn-add-item" onclick="addItem()">＋ 添加拉链品种</button>
+  <div class="qsum" id="qsum" style="display:none"></div>
+</div>
+
+<script>
+// ════════════════════════════════════
+// DATA
+// ════════════════════════════════════
+const MAT_LABELS=['黄铜','青古铜/镀白','双色古银/黑镍','黑古铜/红古铜','镀黄金/白金','镀黑金/浅金','铝齿'];
+
+function mkMetal(raw){
+  const o={};
+  for(const r of raw){
+    const[m,cm,...rest]=r;
+    if(!o[m])o[m]={};
+    o[m][cm]=[];
+    for(let i=0;i<7;i++)o[m][cm].push(rest.slice(i*3,i*3+3).map(v=>v===null?null:+v));
+  }
+  return o;
+}
+
+let MD=mkMetal([
+  ['3#',20, 0.7371,0.02961,0.016, 0.77,0.032,0.018, 1.0925,0.0345,0.01725, 0.83,0.035,0.019, 0.85,0.035,0.019, 1.403,0.036,0.02, 0.5,0.01,0.006],
+  ['3#',60, 2.0097,0.02961,0.016, 2.13,0.032,0.018, 2.438,0.0345,0.01725,  2.31,0.035,0.019, 2.34,0.035,0.019, 2.4,0.036,0.02,  0.92,0.01,0.006],
+  ['4#',20, 0.8883,0.0378,0.021,  0.93,0.041,0.023, 1.38,0.04025,0.023,    1.01,0.045,0.025, 1.02,0.045,0.025, 1.7135,0.046,0.026, 0.54,0.012,0.007],
+  ['4#',60, 2.4885,0.0378,0.021,  2.64,0.041,0.023, 3.128,0.04025,0.023,   2.87,0.045,0.025, 2.89,0.045,0.025, 2.97,0.046,0.026,   1.03,0.012,0.007],
+  ['5#',20, 1.134,0.04725,0.026,  1.19,0.051,0.028, 1.495,0.046,0.02875,   1.28,0.055,0.031, 1.3,0.055,0.031,  1.863,0.057,0.032,  0.65,0.014,0.008],
+  ['5#',60, 3.1059,0.04725,0.026, 3.3,0.051,0.028,  3.404,0.046,0.02875,   3.58,0.055,0.031, 3.62,0.055,0.031, 3.71,0.057,0.032,   1.22,0.014,0.008],
+  ['7#',20, 1.4427,0.058,0.032,   1.48,0.059,0.033, 2.1045,0.00575,0.0345, 1.57,0.064,0.035, 1.61,0.064,0.035, 2.507,0.066,0.036,  null,null,null],
+  ['7#',60, 3.8241,0.058,0.032,   3.94,0.059,0.033, 4.715,0.00575,0.0345,  4.23,0.064,0.035, 4.31,0.064,0.035, 4.43,0.066,0.036,   null,null,null],
+  ['8#',20, 2.0286,0.08379,0.047, 2.07,0.086,0.048, 2.553,0.069,0.046,     2.19,0.093,0.052, 2.25,0.093,0.052, 2.967,0.096,0.053,  1.03,0.02,0.011],
+  ['8#',60, 5.47,0.08379,0.047,   5.63,0.086,0.048, 5.612,0.069,0.046,     6,0.093,0.052,    6.1,0.093,0.052,  6.24,0.096,0.053,   1.9,0.02,0.011],
+  ['10#',20,2.5011,0.108,0.06,    2.56,0.112,0.062, 3.427,0.092,0.06325,   2.73,0.12,0.067,  2.8,0.12,0.067,   3.9675,0.124,0.069, 1.2,0.026,0.014],
+  ['10#',60,6.9363,0.108,0.06,    7.14,0.112,0.062, 7.8775,0.092,0.06325,  7.66,0.12,0.067,  7.76,0.12,0.067,  7.96,0.124,0.069,   2.34,0.026,0.014],
+  ['12#',60,null,null,null, null,null,null, null,null,null, null,null,null, 16.675,0.1495,0.0805,16.675,0.1495,0.0805, null,null,null],
+  ['12#',20,null,null,null, null,null,null, null,null,null, null,null,null, 8.0155,0.1265,0.069, 8.0155,0.1265,0.069,  null,null,null],
+  ['15#',60,null,null,null, null,null,null, null,null,null, null,null,null, 19.435,0.1725,0.1035,19.435,0.1725,0.1035, null,null,null],
+  ['15#',20,null,null,null, null,null,null, null,null,null, null,null,null, 9.2,0.1495,0.0805,   9.2,0.1495,0.0805,    null,null,null],
+  ['3#双开',60,  2.1798,0.03,0.016,  2.2995,0.032,0.018,2.99,0.0345,0.0575,  2.49,0.035,0.019,2.53,0.035,0.019,2.58,0.036,0.02,  1.09,0.01,0.006],
+  ['5#双开',60,  3.35,0.047,0.026,   3.5406,0.051,0.028,3.887,0.046,0.02875, 3.83,0.055,0.031,3.89,0.055,0.031,3.98,0.057,0.032, 1.46,0.012,0.007],
+  ['7#双开',60,  4.13,0.057,0.032,   4.2525,0.059,0.033,5.29,0.0575,0.0345,  4.54,0.064,0.035,4.64,0.064,0.035,4.76,0.066,0.036, null,null,null],
+  ['8#双开',60,  5.9,0.084,0.047,    6.0543,0.086,0.048,6.187,0.069,0.046,   6.44,0.093,0.052,6.56,0.093,0.052,6.71,0.096,0.053, 2.32,0.02,0.011],
+  ['10#双开',60, 7.33,0.108,0.06,    7.5348,0.112,0.062,8.165,0.092,0.06325, 8.06,0.12,0.067, 8.18,0.12,0.067, 8.39,0.124,0.069, 2.74,0.026,0.014],
+]);
+
+let MYD=mkMetal([
+  ['3#',20, 0.81,0.033,0.019,  0.85,0.036,0.02,   1.15,0.0345,0.01725,  0.91,0.04,0.022,  0.93,0.04,0.022,  0.95,0.041,0.023, null,null,null],
+  ['3#',60, 2.23,0.033,0.019,  2.37,0.036,0.02,   2.553,0.0345,0.01725, 2.58,0.04,0.022,  2.61,0.04,0.022,  2.68,0.041,0.023, null,null,null],
+  ['4#',20, 0.97,0.043,0.024,  1.02,0.046,0.026,  1.3225,0.0391,0.023,  1.1,0.05,0.028,   1.12,0.05,0.028,  1.14,0.052,0.029, null,null,null],
+  ['4#',60, 2.75,0.043,0.024,  2.92,0.046,0.026,  3.35225,0.0391,0.023, 3.18,0.05,0.028,  3.21,0.05,0.028,  3.29,0.052,0.029, null,null,null],
+  ['5#',20, 1.13,0.047,0.026,  1.18,0.05,0.028,   1.587,0.046,0.02875,  1.28,0.056,0.031, 1.3,0.056,0.031,  1.34,0.058,0.032, null,null,null],
+  ['5#',60, 3.08,0.047,0.026,  3.28,0.05,0.028,   3.6225,0.046,0.02875, 3.58,0.056,0.031, 3.62,0.056,0.031, 3.72,0.058,0.032, null,null,null],
+  ['7#',20, 1.44,0.057,0.032,  1.48,0.059,0.033,  2.2517,0.0575,0.0345, 1.58,0.064,0.036, 1.63,0.064,0.036, 1.66,0.066,0.037, null,null,null],
+  ['7#',60, 3.83,0.057,0.032,  3.95,0.059,0.033,  5.336,0.0575,0.0345,  4.25,0.064,0.036, 4.33,0.064,0.036, 4.45,0.066,0.037, null,null,null],
+  ['8#',20, 1.85,0.074,0.041,  1.9,0.076,0.042,   2.645,0.083,0.046,    2.02,0.083,0.046, 2.09,0.083,0.046, 2.13,0.086,0.048, null,null,null],
+  ['8#',60, 4.9,0.074,0.041,   5.05,0.076,0.042,  5.727,0.083,0.046,    5.45,0.083,0.046, 5.54,0.083,0.046, 5.7,0.086,0.048,  null,null,null],
+  ['10#',20,2.16,0.088,0.049,  2.22,0.091,0.051,  3.128,0.08625,0.06325,2.37,0.1,0.055,   2.44,0.1,0.055,   2.5,0.103,0.057,  null,null,null],
+  ['10#',60,5.83,0.088,0.049,  6.01,0.091,0.051,  7.728,0.08625,0.06325,6.48,0.1,0.055,   6.58,0.1,0.055,   6.78,0.103,0.057, null,null,null],
+  ['3#双开',60, 2.4,0.033,0.019, 2.54,0.036,0.02,   3.312,0.0345,0.01725, 2.75,0.04,0.022,  2.79,0.04,0.022,  2.86,0.041,0.023, null,null,null],
+  ['5#双开',60, 3.32,0.047,0.026,3.52,0.05,0.028,   4.14,0.046,0.02875,   3.83,0.056,0.031, 3.89,0.056,0.031, 3.99,0.058,0.032, null,null,null],
+  ['7#双开',60, 4.15,0.057,0.032,4.26,0.059,0.033,  5.98,0.0575,0.0345,   4.57,0.064,0.036, 4.67,0.064,0.036, 4.79,0.066,0.037, null,null,null],
+  ['8#双开',60, 5.33,0.074,0.041,5.48,0.076,0.042,  6.3825,0.069,0.046,   5.89,0.083,0.046, 6.01,0.083,0.046, 6.16,0.086,0.048, null,null,null],
+  ['10#双开',60,6.22,0.088,0.049,6.41,0.091,0.051,  8.51,0.08625,0.06325, 6.89,0.1,0.055,   7.01,0.1,0.055,   7.2,0.103,0.057,  null,null,null],
+]);
+
+let ND=[
+  {name:'3#尼龙自动头闭口',cm:20,p:0.2835,inc:0.004725,dec:0.002625},
+  {name:'3#尼龙前后码注塑闭口',cm:20,p:0.3675,inc:0.004725,dec:0.002625},
+  {name:'3#尼龙开口/注塑开口',cm:60,p:0.7875,inc:0.004725,dec:0.002625},
+  {name:'3#尼龙注塑双开口',cm:60,p:1.05,inc:0.004725,dec:0.002625},
+  {name:'4#尼龙自动头闭口',cm:20,p:0.378,inc:0.00525,dec:0.00315},
+  {name:'4#尼龙前后码注塑闭口',cm:20,p:0.399,inc:0.00525,dec:0.00315},
+  {name:'4#尼龙开口/注塑开口',cm:60,p:0.819,inc:0.00525,dec:0.00315},
+  {name:'5#尼龙自动头闭口',cm:20,p:0.4725,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙前后注塑闭口',cm:20,p:0.5145,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙自动头开口',cm:60,p:0.966,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙自动头双开',cm:60,p:1.2285,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙注塑开口',cm:60,p:1.029,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙注塑双开口',cm:60,p:1.2915,inc:0.0063,dec:0.00315},
+  {name:'8#尼龙注塑闭口',cm:20,p:0.7875,inc:0.0105,dec:0.00525},
+  {name:'8#尼龙自动头开口',cm:60,p:1.365,inc:0.0105,dec:0.00525},
+  {name:'8#尼龙注塑双开口',cm:60,p:1.89,inc:0.0105,dec:0.00525},
+  {name:'3#防水TPU闭口',cm:20,p:0.651,inc:0.01365,dec:0.0063},
+  {name:'3#防水TPU开口',cm:60,p:1.365,inc:0.01365,dec:0.0063},
+  {name:'3#防水电泳亚光闭口',cm:20,p:0.966,inc:0.0231,dec:0.01155},
+  {name:'3#防水电泳亚光开口',cm:60,p:2.1,inc:0.0231,dec:0.01155},
+  {name:'5#防水TPU闭口',cm:20,p:0.672,inc:0.01365,dec:0.0063},
+  {name:'5#防水TPU开口',cm:60,p:1.3545,inc:0.01365,dec:0.0063},
+  {name:'5#防水TPU双开口',cm:60,p:1.7325,inc:0.01365,dec:0.0063},
+  {name:'5#防水电泳亚光闭口',cm:20,p:1.0395,inc:0.0231,dec:0.01155},
+  {name:'5#防水电泳亚光开口',cm:60,p:2.1525,inc:0.0231,dec:0.01155},
+  {name:'5#防水电泳亚光双开口',cm:60,p:2.604,inc:0.0231,dec:0.01155},
+  {name:'3#金银齿闭口',cm:20,p:0.42,inc:0.00735,dec:0.003675},
+  {name:'3#金银齿开口/注塑开口',cm:60,p:0.966,inc:0.00735,dec:0.003675},
+  {name:'3#金银齿注塑双开口',cm:60,p:1.2075,inc:0.00735,dec:0.003675},
+  {name:'4#金银齿闭口',cm:20,p:0.5775,inc:0.008925,dec:0.0042},
+  {name:'4#金银齿开口/注塑开口',cm:60,p:1.0395,inc:0.008925,dec:0.0042},
+  {name:'5#金银齿闭口',cm:20,p:0.672,inc:0.01365,dec:0.0063},
+  {name:'5#金银齿前后注塑闭口',cm:20,p:0.7035,inc:0.01365,dec:0.0063},
+  {name:'5#金银齿开口/注塑开口',cm:60,p:1.4175,inc:0.01365,dec:0.0063},
+  {name:'5#金银齿双开/注塑双开',cm:60,p:1.68,inc:0.01365,dec:0.0063},
+];
+
+let RD=[
+  {name:'3#树脂闭口',cm:20,p:0.525,inc:0.0063,dec:0.00315},
+  {name:'3#树脂开口',cm:60,p:0.9975,inc:0.0063,dec:0.00315},
+  {name:'3#树脂双开',cm:60,p:1.3125,inc:0.0063,dec:0.00315},
+  {name:'5#树脂/细齿闭口',cm:20,p:0.57015,inc:0.0084,dec:0.0042},
+  {name:'5#树脂/细齿开口',cm:60,p:1.1025,inc:0.0084,dec:0.0042},
+  {name:'5#树脂双开',cm:60,p:1.365,inc:0.0084,dec:0.0042},
+  {name:'5#玉米牙/方块牙闭口',cm:20,p:0.609,inc:0.0084,dec:0.0042},
+  {name:'5#玉米牙/方块牙开口',cm:60,p:1.155,inc:0.0084,dec:0.0042},
+  {name:'5#轨道牙闭口',cm:20,p:0.609,inc:0.0084,dec:0.0042},
+  {name:'5#轨道牙开口',cm:60,p:1.155,inc:0.0084,dec:0.0042},
+  {name:'8#树脂/细齿闭口',cm:20,p:0.9765,inc:0.01365,dec:0.00735},
+  {name:'8#树脂/细齿开口',cm:60,p:1.785,inc:0.01365,dec:0.00735},
+  {name:'8#树脂双开',cm:60,p:2.2575,inc:0.01365,dec:0.00735},
+  {name:'8#轨道牙/玉米牙闭口',cm:20,p:0.9975,inc:0.01365,dec:0.00735},
+  {name:'8#轨道牙/玉米牙开口',cm:60,p:1.8375,inc:0.01365,dec:0.00735},
+  {name:'8#轨道牙双开口',cm:60,p:2.3625,inc:0.01365,dec:0.00735},
+  {name:'10#树脂闭口',cm:20,p:1.134,inc:0.0168,dec:0.0084},
+  {name:'10#树脂开口',cm:60,p:1.953,inc:0.0168,dec:0.0084},
+  {name:'10#树脂双开',cm:60,p:2.52,inc:0.0168,dec:0.0084},
+];
+
+// ════════════════════════════════════
+// OPTION MAPS — drives the cascading dropdowns
+// ════════════════════════════════════
+
+// Metal: which models exist per open-type
+const METAL_BY_OPEN={
+  '闭口': ['3#','4#','5#','7#','8#','10#','12#','15#'],
+  '开口': ['3#','4#','5#','7#','8#','10#'],
+  '双开口':['3#','5#','7#','8#','10#'],
+};
+
+// Nylon: sub → models → open-types (maps to specific ND entries)
+const NY_TREE={
+  '普通尼龙':{
+    '3#':['自动头闭口','前后码注塑闭口','开口/注塑开口','注塑双开口'],
+    '4#':['自动头闭口','前后码注塑闭口','开口/注塑开口'],
+    '5#':['自动头闭口','前后注塑闭口','自动头开口','自动头双开','注塑开口','注塑双开口'],
+    '8#':['注塑闭口','自动头开口','注塑双开口'],
+  },
+  '防水TPU':{
+    '3#':['闭口','开口'],
+    '5#':['闭口','开口','双开口'],
+  },
+  '防水电泳亚光':{
+    '3#':['闭口','开口'],
+    '5#':['闭口','开口','双开口'],
+  },
+  '金银齿':{
+    '3#':['闭口','开口/注塑开口','注塑双开口'],
+    '4#':['闭口','开口/注塑开口'],
+    '5#':['闭口','前后注塑闭口','开口/注塑开口','双开/注塑双开'],
+  },
+};
+
+// Map nylon selection → ND index
+function nyIdx(sub,model,otype){
+  // build a lookup key
+  const prefix=model;
+  if(sub==='普通尼龙'){
+    // map otype to ND name fragment
+    const map={'自动头闭口':'尼龙自动头闭口','前后码注塑闭口':'尼龙前后码注塑闭口','开口/注塑开口':'尼龙开口/注塑开口','注塑双开口':'尼龙注塑双开口','前后注塑闭口':'尼龙前后注塑闭口','自动头开口':'尼龙自动头开口','自动头双开':'尼龙自动头双开','注塑开口':'尼龙注塑开口','注塑闭口':'尼龙注塑闭口'};
+    const frag=map[otype]||'尼龙'+otype;
+    return ND.findIndex(r=>r.name===prefix+frag);
+  }
+  if(sub==='防水TPU') return ND.findIndex(r=>r.name===`${prefix}防水TPU${otype}`);
+  if(sub==='防水电泳亚光') return ND.findIndex(r=>r.name===`${prefix}防水电泳亚光${otype}`);
+  if(sub==='金银齿') return ND.findIndex(r=>r.name===`${prefix}金银齿${otype}`);
+  return -1;
+}
+
+// Resin: model → subtype → open-types
+const RE_TREE={
+  '3#':{'普通':['闭口','开口','双开']},
+  '5#':{'普通/细齿':['闭口','开口','双开'],'玉米牙/方块牙':['闭口','开口'],'轨道牙':['闭口','开口']},
+  '8#':{'普通/细齿':['闭口','开口','双开'],'轨道牙/玉米牙':['闭口','开口','双开口']},
+  '10#':{'普通':['闭口','开口','双开']},
+};
+function reIdx(model,sub,otype){
+  if(sub==='普通'||sub==='普通/细齿') return RD.findIndex(r=>r.name===`${model}树脂/${sub==='普通/细齿'?'细齿':sub}${otype}`||r.name===`${model}树脂${otype}`);
+  return RD.findIndex(r=>r.name===`${model}${sub}${otype}`);
+}
+
+// ════════════════════════════════════
+// PRICE CALC
+// ════════════════════════════════════
+function calcMetal(data,model,openType,matIdx,cm){
+  const key=openType==='双开口'?model+'双开':model;
+  const md=data[key]; if(!md) return null;
+  const cms=Object.keys(md).map(Number).sort((a,b)=>a-b);
+  let base=cms[0];
+  for(const c of cms) if(Math.abs(c-cm)<Math.abs(base-cm)) base=c;
+  const v=md[base][matIdx]; if(!v||v[0]===null) return null;
+  const diff=cm-base;
+  return diff>0?v[0]+diff*v[1]:diff<0?v[0]-Math.abs(diff)*v[2]:v[0];
+}
+function calcSimple(rows,idx,cm){
+  const r=rows[idx]; if(!r) return null;
+  const diff=cm-r.cm;
+  return diff>0?r.p+diff*r.inc:diff<0?r.p-Math.abs(diff)*r.dec:r.p;
+}
+
+// ════════════════════════════════════
+// SETTINGS RENDER
+// ════════════════════════════════════
+function renderMetal(wid,data,dkey){
+  const models=Object.keys(data);
+  let h=`<div class="tbl-wrap" style="overflow-x:auto"><table class="stbl"><thead>
+  <tr><th>型号</th><th>基准CM</th>${MAT_LABELS.map(m=>`<th colspan="3" style="color:var(--gold-light)">${m}</th>`).join('')}</tr>
+  <tr><th></th><th></th>${MAT_LABELS.map(()=>'<th>单价</th><th>增/CM</th><th>减/CM</th>').join('')}</tr>
+  </thead><tbody>`;
+  for(const m of models){
+    for(const cm of Object.keys(data[m]).map(Number).sort((a,b)=>a-b)){
+      const mats=data[m][cm];
+      h+=`<tr><td style="font-weight:600;white-space:nowrap">${m}</td><td>${cm}</td>`;
+      for(let i=0;i<7;i++){
+        const v=mats[i];
+        if(!v||v[0]===null) h+=`<td colspan="3" style="color:var(--text-faint);font-size:11px">—</td>`;
+        else h+=`<td><input class="ni" type="number" step="0.0001" value="${v[0]}" onchange="updM('${dkey}','${m}',${cm},${i},0,this.value)"></td>
+        <td><input class="ni" type="number" step="0.0001" value="${v[1]}" onchange="updM('${dkey}','${m}',${cm},${i},1,this.value)"></td>
+        <td><input class="ni" type="number" step="0.0001" value="${v[2]}" onchange="updM('${dkey}','${m}',${cm},${i},2,this.value)"></td>`;
+      }
+      h+='</tr>';
+    }
+  }
+  h+='</tbody></table></div>';
+  document.getElementById(wid).innerHTML=h;
+}
+function renderSimple(wid,data,dkey){
+  let h=`<div class="tbl-wrap"><table class="stbl"><thead><tr>
+  <th style="text-align:left;width:38%">品名</th><th>基准CM</th><th>单价(元)</th><th>增/CM</th><th>减/CM</th>
+  </tr></thead><tbody>`;
+  data.forEach((r,i)=>{
+    h+=`<tr>
+    <td><input type="text" class="ni wfull" value="${r.name}" onchange="${dkey}[${i}].name=this.value;recalcAll();setSaveStatus('● 有未保存的修改','saving')"></td>
+    <td><input class="ni w60" type="number" value="${r.cm}" onchange="${dkey}[${i}].cm=+this.value;recalcAll();setSaveStatus('● 有未保存的修改','saving')"></td>
+    <td><input class="ni" type="number" step="0.0001" value="${r.p}" onchange="${dkey}[${i}].p=+this.value;recalcAll();setSaveStatus('● 有未保存的修改','saving')"></td>
+    <td><input class="ni" type="number" step="0.0001" value="${r.inc}" onchange="${dkey}[${i}].inc=+this.value;recalcAll();setSaveStatus('● 有未保存的修改','saving')"></td>
+    <td><input class="ni" type="number" step="0.0001" value="${r.dec}" onchange="${dkey}[${i}].dec=+this.value;recalcAll();setSaveStatus('● 有未保存的修改','saving')"></td>
+    </tr>`;
+  });
+  h+='</tbody></table></div>';
+  document.getElementById(wid).innerHTML=h;
+}
+// ════════════════════════════════════
+// QUOTE ITEMS
+// ════════════════════════════════════
+let items=[],idc=0;
+
+function defaultItem(){
+  return {type:'金属拉链',openType:'闭口',model:'5#',matIdx:0,
+    nylonSub:'普通尼龙',nylonModel:'5#',nylonOpen:'自动头闭口',
+    resinModel:'5#',resinSub:'普通/细齿',resinOpen:'闭口',
+    sizes:[{cm:20}],extraFee:0};
+}
+
+function addItem(){
+  const id=++idc;
+  items.push({id,...defaultItem()});
+  renderItems();recalcAll();
+}
+function removeItem(id){items=items.filter(i=>i.id!==id);renderItems();recalcAll();}
+function addSize(id){const it=items.find(i=>i.id===id);if(it){it.sizes.push({cm:20});renderItems();recalcAll();}}
+function removeSize(id,si){const it=items.find(i=>i.id===id);if(it){it.sizes.splice(si,1);renderItems();recalcAll();}}
+
+function itemLabel(it){
+  if(it.type==='金属拉链'||it.type==='金属Y牙')
+    return `${it.type}  ${it.model}  ${MAT_LABELS[it.matIdx]}  ${it.openType}`;
+  if(it.type==='尼龙拉链')
+    return `${it.type}  ${it.nylonSub}  ${it.nylonModel}  ${it.nylonOpen}`;
+  if(it.type==='树脂拉链')
+    return `${it.type}  ${it.resinModel}  ${it.resinSub}  ${it.resinOpen}`;
+  return it.type;
+}
+
+// ─── SELECTOR HTML ───
+function mkSel(id,label,opts,cur,fn,disabled){
+  const dis=disabled?'disabled':'';
+  return `<div class="sel-grp">
+    <div class="sel-lbl">${label}</div>
+    <select class="sel" ${dis} onchange="${fn}(${id},this.value)">
+      ${opts.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('')}
+    </select>
+  </div>`;
+}
+function mkEmpty(label){
+  return `<div class="sel-grp"><div class="sel-lbl">${label}</div><div class="sel-empty">不适用</div></div>`;
+}
+
+function selHtml(it){
+  const id=it.id,t=it.type;
+
+  // D1: type
+  const d1=mkSel(id,'拉链类型',['金属拉链','金属Y牙','尼龙拉链','树脂拉链'],t,'onType');
+
+  let d2,d3,d4;
+
+  if(t==='金属拉链'||t==='金属Y牙'){
+    // D2: open type (determines available models)
+    d2=mkSel(id,'开合类型',['闭口','开口','双开口'],it.openType,'onMetalOpen');
+    // D3: model
+    const models=METAL_BY_OPEN[it.openType]||METAL_BY_OPEN['闭口'];
+    d3=mkSel(id,'型号',models,it.model,'onMetalModel');
+    // D4: material — show available only
+    const data=t==='金属Y牙'?MYD:MD;
+    const key=it.openType==='双开口'?it.model+'双开':it.model;
+    const md=data[key];
+    const matOpts=MAT_LABELS.map((lbl,i)=>{
+      let avail=false;
+      if(md) for(const cm of Object.keys(md)){const v=md[cm][i];if(v&&v[0]!==null){avail=true;break;}}
+      return {lbl,i,avail};
+    });
+    const availMats=matOpts.filter(m=>m.avail);
+    const curMat=matOpts[it.matIdx]&&matOpts[it.matIdx].avail?MAT_LABELS[it.matIdx]:(availMats[0]?availMats[0].lbl:MAT_LABELS[0]);
+    d4=`<div class="sel-grp">
+      <div class="sel-lbl">颜色 / 材质</div>
+      <select class="sel" onchange="onMetalMat(${id},this.value)">
+        ${matOpts.map(m=>`<option value="${m.i}" ${m.i===it.matIdx?'selected':''} ${!m.avail?'disabled':''}>
+          ${!m.avail?'✗ ':''}${m.lbl}
+        </option>`).join('')}
+      </select>
+    </div>`;
+  }
+  else if(t==='尼龙拉链'){
+    // D2: sub-category
+    const subs=Object.keys(NY_TREE);
+    d2=mkSel(id,'品种/工艺',subs,it.nylonSub,'onNylonSub');
+    // D3: model
+    const nyModels=Object.keys(NY_TREE[it.nylonSub]||{});
+    d3=mkSel(id,'型号',nyModels,it.nylonModel,'onNylonModel');
+    // D4: open type
+    const nyOpens=(NY_TREE[it.nylonSub]||{})[it.nylonModel]||[];
+    d4=mkSel(id,'开合类型',nyOpens,it.nylonOpen,'onNylonOpen');
+  }
+  else if(t==='树脂拉链'){
+    // D2: model
+    d2=mkSel(id,'型号',Object.keys(RE_TREE),it.resinModel,'onResinModel');
+    // D3: sub-type
+    const reSubs=Object.keys(RE_TREE[it.resinModel]||{});
+    d3=mkSel(id,'齿型',reSubs,it.resinSub,'onResinSub');
+    // D4: open type
+    const reOpens=(RE_TREE[it.resinModel]||{})[it.resinSub]||[];
+    d4=mkSel(id,'开合类型',reOpens,it.resinOpen,'onResinOpen');
+  }
+
+  return `<div class="sel-grid">${d1}${d2||''}${d3||''}${d4||''}</div>`;
+}
+
+// ─── CHANGE HANDLERS ───
+function onType(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.type=val;
+  renderItems();recalcAll();
+}
+function onMetalOpen(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.openType=val;
+  const mods=METAL_BY_OPEN[val]||[];
+  if(!mods.includes(it.model)) it.model=mods[0];
+  renderItems();recalcAll();
+}
+function onMetalModel(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.model=val;
+  renderItems();recalcAll();
+}
+function onMetalMat(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.matIdx=+val;
+  renderItems();recalcAll();
+}
+function onNylonSub(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.nylonSub=val;
+  const mods=Object.keys(NY_TREE[val]||{});
+  it.nylonModel=mods[0]||'3#';
+  it.nylonOpen=((NY_TREE[val]||{})[it.nylonModel]||[])[0]||'闭口';
+  renderItems();recalcAll();
+}
+function onNylonModel(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.nylonModel=val;
+  const opens=((NY_TREE[it.nylonSub]||{})[val]||[]);
+  if(!opens.includes(it.nylonOpen)) it.nylonOpen=opens[0]||'闭口';
+  renderItems();recalcAll();
+}
+function onNylonOpen(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.nylonOpen=val;recalcAll();
+  // update label only
+  const lbl=document.querySelector(`#item-${id} .item-label`);
+  if(lbl)lbl.textContent=itemLabel(it);
+}
+function onResinModel(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.resinModel=val;
+  const subs=Object.keys(RE_TREE[val]||{});
+  it.resinSub=subs[0];
+  it.resinOpen=((RE_TREE[val]||{})[it.resinSub]||[])[0]||'闭口';
+  renderItems();recalcAll();
+}
+function onResinSub(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.resinSub=val;
+  const opens=((RE_TREE[it.resinModel]||{})[val]||[]);
+  it.resinOpen=opens[0]||'闭口';
+  renderItems();recalcAll();
+}
+function onResinOpen(id,val){
+  const it=items.find(i=>i.id===id);if(!it)return;
+  it.resinOpen=val;recalcAll();
+  const lbl=document.querySelector(`#item-${id} .item-label`);
+  if(lbl)lbl.textContent=itemLabel(it);
+}
+
+// ─── RENDER ALL ITEMS ───
+function renderItems(){
+  const cont=document.getElementById('qitems');
+  cont.innerHTML='';
+  items.forEach((it,idx)=>{
+    const el=document.createElement('div');
+    el.className='qitem';el.id=`item-${it.id}`;
+    el.innerHTML=`
+    <div class="qitem-head">
+      <div class="inum">${idx+1}</div>
+      <div class="item-label">${itemLabel(it)}</div>
+      <button class="btn-rm" onclick="removeItem(${it.id})">移除</button>
+    </div>
+    ${selHtml(it)}
+    <div class="qitem-body">
+      <div class="size-rows" id="szrows-${it.id}">
+        ${it.sizes.map((s,si)=>sizeRowHtml(it.id,si,s)).join('')}
+      </div>
+      <div class="qitem-foot">
+        <div class="fee-grp">
+          <span>特殊附加费：</span>
+          <input class="finput" type="number" value="${it.extraFee||0}" step="0.01" min="0" placeholder="0.00"
+            onchange="items.find(i=>i.id==${it.id}).extraFee=parseFloat(this.value)||0;recalcAll()">
+          <span>元/条</span>
+        </div>
+        <button class="btn-adds" onclick="addSize(${it.id})">＋ 添加长度</button>
+      </div>
+      <div class="itotal">
+        <span class="itotal-lbl">本品种单价合计</span>
+        <div class="itotal-vals">
+          <span class="tc" id="tc-${it.id}">—</span>
+          <span class="tu" id="tu-${it.id}"></span>
+        </div>
+      </div>
+    </div>`;
+    cont.appendChild(el);
+  });
+}
+
+function sizeRowHtml(iid,si,s){
+  return `<div class="srow">
+  <div><div class="sl">长度 (CM)</div>
+    <input class="sinput" type="number" value="${s.cm||20}" min="1" step="1"
+      onchange="items.find(i=>i.id===${iid}).sizes[${si}].cm=+this.value;recalcAll()">
+  </div>
+  <div><div class="sl">数量 (条/可选)</div>
+    <input class="sinput" type="number" value="${s.qty||''}" min="1" placeholder="—"
+      onchange="items.find(i=>i.id===${iid}).sizes[${si}].qty=+this.value||null;recalcAll()">
+  </div>
+  <div><div class="sl">单价 CNY</div>
+    <div class="pdis"><span class="pcny" id="pcny-${iid}-${si}">—</span></div>
+  </div>
+  <div><div class="sl">单价 USD</div>
+    <div class="pdis"><span class="pusd" id="pusd-${iid}-${si}">—</span></div>
+  </div>
+  <button class="btn-rms" onclick="removeSize(${iid},${si})">×</button>
+  </div>`;
+}
+
+// ─── GET PRICE FOR ITEM AT CM ───
+function getPrice(it,cm){
+  const t=it.type;
+  if(t==='金属拉链'||t==='金属Y牙'){
+    return calcMetal(t==='金属Y牙'?MYD:MD,it.model,it.openType,it.matIdx,cm);
+  }
+  if(t==='尼龙拉链'){
+    const idx=nyIdx(it.nylonSub,it.nylonModel,it.nylonOpen);
+    return idx>=0?calcSimple(ND,idx,cm):null;
+  }
+  if(t==='树脂拉链'){
+    const idx=reIdx(it.resinModel,it.resinSub,it.resinOpen);
+    return idx>=0?calcSimple(RD,idx,cm):null;
+  }
+  return null;
+}
+
+// ════════════════════════════════════
+// RECALC
+// ════════════════════════════════════
+function recalcAll(){
+  const rate=parseFloat(document.getElementById('rate').value)||7.25;
+  const mode=document.getElementById('cmode').value;
+  let grandCny=0;const sumRows=[];
+
+  items.forEach(it=>{
+    let itCny=0,hasP=false;
+    it.sizes.forEach((s,si)=>{
+      const cm=s.cm||20;
+      let p=getPrice(it,cm);
+      const ecny=document.getElementById(`pcny-${it.id}-${si}`);
+      const eusd=document.getElementById(`pusd-${it.id}-${si}`);
+      if(p!==null&&p!==undefined){
+        p+=(it.extraFee||0);
+        if(ecny)ecny.textContent=mode==='usd'?'':('¥'+p.toFixed(4));
+        if(eusd)eusd.textContent=mode==='cny'?'':('$'+(p/rate).toFixed(4));
+        itCny+=p;hasP=true;
+      }else{
+        if(ecny)ecny.textContent='—';
+        if(eusd)eusd.textContent='—';
+      }
+    });
+    const etcny=document.getElementById(`tc-${it.id}`);
+    const etusd=document.getElementById(`tu-${it.id}`);
+    if(etcny)etcny.textContent=hasP?(mode==='usd'?'':('¥'+itCny.toFixed(4))):'—';
+    if(etusd)etusd.textContent=(hasP&&mode!=='cny')?('$'+(itCny/rate).toFixed(4)):'';
+    if(hasP){sumRows.push({name:itemLabel(it),cny:itCny,usd:itCny/rate});grandCny+=itCny;}
+    // update header label
+    const lbl=document.querySelector(`#item-${it.id} .item-label`);
+    if(lbl)lbl.textContent=itemLabel(it);
+  });
+
+  const se=document.getElementById('qsum');
+  if(!sumRows.length){se.style.display='none';return;}
+  se.style.display='block';
+  let h=`<div class="qsum-title">📊 报价汇总</div>`;
+  sumRows.forEach(r=>{
+    h+=`<div class="srow2"><span>${r.name}</span><span>
+      ${mode!=='usd'?`<span class="sv">¥${r.cny.toFixed(4)}</span>`:''}
+      ${mode!=='cny'?`<span class="sv2">$${r.usd.toFixed(4)}</span>`:''}
+    </span></div>`;
+  });
+  h+=`<div class="srow2 grand"><span>总计</span><span>
+    ${mode!=='usd'?`<span class="sv">¥${grandCny.toFixed(4)}</span>`:''}
+    ${mode!=='cny'?`<span class="sv2">$${(grandCny/rate).toFixed(4)}</span>`:''}
+  </span></div>`;
+  se.innerHTML=h;
+}
+
+// ════════════════════════════════════
+// TAB SWITCHING
+// ════════════════════════════════════
+function switchTab(tab,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  btn.classList.add('active');
+}
+function switchTypeTab(type,btn){
+  document.querySelectorAll('.type-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.type-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('type-'+type).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ════════════════════════════════════
+// FIREBASE & AUTH
+// ════════════════════════════════════
+let db=null, auth=null, fbReady=false, isAdmin=false;
+
+// Load saved config from localStorage
+function loadSavedConfig(){
+  try{
+    const s=localStorage.getItem('fb_cfg');
+    return s?JSON.parse(s):null;
+  }catch(e){return null;}
+}
+
+function initFirebase(cfg){
+  try{
+    if(!firebase.apps.length){
+      firebase.initializeApp({
+        apiKey: cfg.apiKey,
+        authDomain: cfg.authDomain,
+        databaseURL: cfg.databaseURL,
+        projectId: cfg.projectId,
+      });
+    }
+    db=firebase.database();
+    auth=firebase.auth();
+    fbReady=true;
+    localStorage.setItem('fb_cfg',JSON.stringify(cfg));
+
+    // Listen for auth state
+    auth.onAuthStateChanged(user=>{
+      isAdmin=!!user;
+      updateAuthUI(user);
+      if(user) renderSettingsContent();
+      else renderSettingsLock();
+    });
+
+    // Listen for remote price changes (real-time sync for readers)
+    db.ref('prices').on('value', snap=>{
+      const data=snap.val();
+      if(data&&!isAdmin){
+        // only apply remote data if NOT admin (admin controls their own session)
+        applyRemoteData(data);
+        renderSettingsContent();
+        recalcAll();
+      } else if(data&&isAdmin){
+        // admin: apply on first load only (don't overwrite mid-edit)
+        if(!adminFirstLoaded){
+          adminFirstLoaded=true;
+          applyRemoteData(data);
+          renderSettingsContent();
+          recalcAll();
+        }
+      }
+    });
+
+    setSaveStatus('已连接','online');
+    return true;
+  }catch(e){
+    console.error(e);
+    return false;
+  }
+}
+
+let adminFirstLoaded=false;
+
+function applyRemoteData(data){
+  if(data.MD)  MD=data.MD;
+  if(data.MYD) MYD=data.MYD;
+  if(data.ND)  ND=data.ND;
+  if(data.RD)  RD=data.RD;
+}
+
+// ── AUTH UI ──
+function updateAuthUI(user){
+  const dot=document.getElementById('auth-dot');
+  const lbl=document.getElementById('auth-label');
+  const btn=document.getElementById('btn-auth');
+  if(user){
+    dot.classList.add('online');
+    lbl.textContent='管理员';
+    btn.textContent='退出登录';
+    btn.className='btn-auth logout';
+  } else {
+    dot.classList.remove('online');
+    lbl.textContent=fbReady?'访客模式':'未连接';
+    btn.textContent='管理员登录';
+    btn.className='btn-auth';
+  }
+}
+
+function renderSettingsLock(){
+  document.getElementById('settings-lock').style.display='flex';
+  document.getElementById('settings-content').style.display='none';
+}
+function renderSettingsContent(){
+  document.getElementById('settings-lock').style.display='none';
+  document.getElementById('settings-content').style.display='block';
+  renderMetal('metal-wrap',MD,'MD');
+  renderMetal('metaly-wrap',MYD,'MYD');
+  renderSimple('nylon-wrap',ND,'ND');
+  renderSimple('resin-wrap',RD,'RD');
+}
+
+function setSaveStatus(msg,type){
+  const el=document.getElementById('save-status');
+  el.textContent=msg;
+  el.className='save-status '+(type||'');
+}
+
+// ── SAVE TO CLOUD ──
+async function saveToCloud(){
+  if(!fbReady||!isAdmin){alert('请先登录管理员账号');return;}
+  setSaveStatus('保存中…','saving');
+  try{
+    await db.ref('prices').set({MD,MYD,ND,RD});
+    setSaveStatus('✓ 已同步','saved');
+    setTimeout(()=>setSaveStatus('',''),3000);
+  }catch(e){
+    setSaveStatus('保存失败','error');
+    alert('保存失败：'+e.message);
+  }
+}
+
+// ── LOGIN / LOGOUT ──
+function handleAuthBtn(){
+  if(isAdmin){ doLogout(); }
+  else{ openModal('modal-login'); }
+}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-pw').value;
+  const err=document.getElementById('login-err');
+  err.textContent='';
+  if(!email||!pw){err.textContent='请填写邮箱和密码';return;}
+  try{
+    await auth.signInWithEmailAndPassword(email,pw);
+    closeModal('modal-login');
+    document.getElementById('login-pw').value='';
+    adminFirstLoaded=false; // allow fresh load from cloud
+  }catch(e){
+    const msgs={'auth/wrong-password':'密码错误','auth/user-not-found':'用户不存在','auth/invalid-email':'邮箱格式不正确','auth/too-many-requests':'尝试次数过多，请稍后再试'};
+    err.textContent=msgs[e.code]||'登录失败：'+e.message;
+  }
+}
+
+function doLogout(){
+  if(!confirm('确认退出管理员账号？'))return;
+  auth.signOut();
+  adminFirstLoaded=false;
+}
+
+// ── CHANGE PASSWORD ──
+async function doChangePw(){
+  const nw=document.getElementById('chpw-new').value;
+  const cf=document.getElementById('chpw-confirm').value;
+  const err=document.getElementById('chpw-err');
+  err.textContent='';
+  if(nw.length<6){err.textContent='密码至少6位';return;}
+  if(nw!==cf){err.textContent='两次输入不一致';return;}
+  try{
+    await auth.currentUser.updatePassword(nw);
+    closeModal('modal-chpw');
+    alert('密码修改成功！');
+  }catch(e){
+    if(e.code==='auth/requires-recent-login'){
+      err.textContent='为安全起见请先退出重新登录后再修改密码';
+    } else {
+      err.textContent='修改失败：'+e.message;
+    }
+  }
+}
+
+// ── CONFIG MODAL ──
+function saveConfig(){
+  const cfg={
+    apiKey:document.getElementById('cfg-apikey').value.trim(),
+    authDomain:document.getElementById('cfg-authdomain').value.trim(),
+    databaseURL:document.getElementById('cfg-dburl').value.trim(),
+    projectId:document.getElementById('cfg-projectid').value.trim(),
+  };
+  const err=document.getElementById('cfg-err');
+  if(!cfg.apiKey||!cfg.databaseURL||!cfg.projectId){
+    err.textContent='请填写所有必填项';return;
+  }
+  const ok=initFirebase(cfg);
+  if(ok){
+    closeModal('modal-config');
+  } else {
+    err.textContent='连接失败，请检查配置是否正确';
+  }
+}
+
+function skipConfig(){
+  closeModal('modal-config');
+  renderSettingsLock();
+  setSaveStatus('本地模式（不同步）','');
+}
+
+// ── MODAL HELPERS ──
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{ if(e.target===o&&o.id!=='modal-config') closeModal(o.id); });
+});
+
+// ── OVERRIDE updM to mark dirty state ──
+function updM(dkey,m,cm,mi,vi,val){
+  (dkey==='MD'?MD:MYD)[m][cm][mi][vi]=+val;
+  recalcAll();
+  setSaveStatus('● 有未保存的修改','saving');
+}
+
+// ════════════════════════════════════
+// INIT
+// ════════════════════════════════════
+(function init(){
+  // Always render quote tab immediately
+  addItem();
+
+  // Settings: show lock by default until authed
+  renderSettingsLock();
+
+  // Try to load saved Firebase config
+  const saved=loadSavedConfig();
+  if(saved&&saved.apiKey&&saved.databaseURL){
+    // pre-fill config fields
+    document.getElementById('cfg-apikey').value=saved.apiKey;
+    document.getElementById('cfg-authdomain').value=saved.authDomain||'';
+    document.getElementById('cfg-dburl').value=saved.databaseURL;
+    document.getElementById('cfg-projectid').value=saved.projectId||'';
+    const ok=initFirebase(saved);
+    if(ok){ closeModal('modal-config'); }
+    // Render local data while waiting for cloud
+    renderMetal('metal-wrap',MD,'MD');
+    renderMetal('metaly-wrap',MYD,'MYD');
+    renderSimple('nylon-wrap',ND,'ND');
+    renderSimple('resin-wrap',RD,'RD');
+    recalcAll();
+  }
+  // else: config modal stays open
+})();
+</script>
+</body>
+</html>
