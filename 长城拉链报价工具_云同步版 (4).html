@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>长城拉链报价工具</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{
+  --bg:#0f0e0c;--surface:#1a1915;--surface2:#232218;--surface3:#2c2b20;
+  --border:#3a3828;--border-light:#4a4840;
+  --gold:#c9a227;--gold-light:#e0b84a;--gold-dim:#7a5f0f;
+  --text:#e8e4d9;--text-dim:#9a9480;--text-faint:#5a5648;
+  --red:#c94040;--green:#4a9c6e;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;min-height:100vh;overflow-x:hidden;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;}
+.topbar-row1{display:flex;align-items:center;padding:0 16px;height:52px;gap:8px;}
+.topbar-row2{display:flex;border-top:1px solid var(--border);}
+.logo{font-size:15px;font-weight:700;color:var(--gold);display:flex;align-items:center;gap:8px;margin-right:auto;white-space:nowrap;}
+.logo-hex{width:24px;height:24px;background:var(--gold);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font-size:10px;color:#0f0e0c;font-weight:900;flex-shrink:0;}
+.tab-btn{flex:1;height:44px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-dim);font-family:'Noto Serif SC',serif;font-size:13px;cursor:pointer;transition:all .2s;}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);background:rgba(201,162,39,.05);}
+.auth-zone{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.auth-dot{width:7px;height:7px;border-radius:50%;background:var(--text-faint);}
+.auth-dot.on{background:var(--green);box-shadow:0 0 5px var(--green);}
+.auth-lbl{font-size:11px;color:var(--text-faint);white-space:nowrap;}
+.save-st{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text-faint);}
+.save-st.saving{color:var(--gold);}
+.save-st.saved{color:var(--green);}
+.save-st.error{color:var(--red);}
+.btn-sm{background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.btn-sm:hover{border-color:var(--gold);color:var(--gold);}
+.btn-sm.danger{border-color:var(--red);color:var(--red);}
+.btn-sm.danger:hover{background:var(--red);color:white;}
+
+/* ── PANEL ── */
+.panel{display:none;padding:16px;max-width:1200px;margin:0 auto;}
+.panel.active{display:block;}
+
+/* ── PLAN BAR (admin only) ── */
+.plan-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.plan-bar-label{font-size:11px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;letter-spacing:.5px;white-space:nowrap;}
+.plan-pills{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
+.plan-pill{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'Noto Serif SC',serif;font-size:12px;cursor:pointer;transition:all .2s;}
+.plan-pill.active{background:var(--gold-dim);border-color:var(--gold);color:var(--gold-light);}
+.plan-pill:hover:not(.active){border-color:var(--border-light);color:var(--text);}
+.btn-new-plan{background:transparent;border:1px dashed var(--gold-dim);color:var(--gold-dim);border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.btn-new-plan:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ── PLAN VIEWER (readonly for agents) ── */
+.plan-viewer-badge{background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.3);border-radius:6px;padding:8px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gold-light);}
+
+/* ── SETTINGS LOCK ── */
+.settings-lock{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;gap:14px;}
+.lock-icon{font-size:44px;}
+.lock-title{font-size:17px;color:var(--gold);font-weight:600;}
+.lock-sub{font-size:13px;color:var(--text-dim);line-height:1.6;max-width:300px;}
+
+/* ── SETTINGS CONTENT ── */
+.settings-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+.settings-actions{display:flex;gap:8px;flex-shrink:0;}
+.type-tabs{display:flex;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;width:100%;margin-bottom:16px;overflow-x:auto;}
+.type-tab{flex:1;min-width:60px;padding:6px 8px;border-radius:5px;border:none;background:transparent;color:var(--text-dim);font-family:'Noto Serif SC',serif;font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap;text-align:center;}
+.type-tab.active{background:var(--surface3);color:var(--gold);border:1px solid var(--border);}
+.type-panel{display:none;}
+.type-panel.active{display:block;}
+.notice{background:rgba(201,162,39,.07);border:1px solid rgba(201,162,39,.2);border-radius:6px;padding:10px 14px;font-size:11px;color:var(--text-dim);line-height:1.7;flex:1;}
+.notice strong{color:var(--gold);}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto;margin-bottom:8px;}
+.stbl{width:100%;border-collapse:collapse;font-size:12px;}
+.stbl th{background:var(--surface2);color:var(--text-dim);font-weight:500;padding:8px 8px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:10px;}
+.stbl th:first-child,.stbl td:first-child{text-align:left;padding-left:12px;}
+.stbl td{padding:4px 6px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle;}
+.stbl tr:last-child td{border-bottom:none;}
+.stbl tr:hover td{background:rgba(255,255,255,.02);}
+.ni{background:var(--surface3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 4px;width:72px;text-align:right;transition:border-color .2s;}
+.ni:focus{outline:none;border-color:var(--gold);}
+.ni.w55{width:55px;}
+.ni.wfull{width:100%;font-size:12px;}
+.ni:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── QUOTE TOP ── */
+.quote-top{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;}
+.cg{display:flex;flex-direction:column;gap:5px;}
+.clabel{font-size:10px;color:var(--text-faint);letter-spacing:.5px;font-family:'JetBrains Mono',monospace;}
+.cinput{background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Noto Serif SC',serif;font-size:13px;padding:8px 10px;transition:border-color .2s;width:100%;}
+.cinput:focus{outline:none;border-color:var(--gold);}
+select.cinput{cursor:pointer;}
+
+/* ── QUOTE ITEM CARD ── */
+.quote-items{display:flex;flex-direction:column;gap:16px;}
+.qitem{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.qitem-head{background:var(--surface2);padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.inum{width:24px;height:24px;background:var(--gold-dim);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gold-light);font-family:'JetBrains Mono',monospace;flex-shrink:0;}
+.item-label{flex:1;font-size:13px;color:var(--gold-light);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.btn-rm{background:transparent;border:1px solid var(--red);color:var(--red);border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;transition:all .2s;flex-shrink:0;}
+.btn-rm:hover{background:var(--red);color:white;}
+
+/* ── SELECTOR GRID ── */
+.sel-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:rgba(201,162,39,.02);}
+.sel-grp{display:flex;flex-direction:column;gap:4px;}
+.sel-lbl{font-size:10px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;}
+.sel{background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'Noto Serif SC',serif;font-size:13px;padding:7px 28px 7px 10px;width:100%;cursor:pointer;transition:border-color .2s;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c9a227'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;}
+.sel:focus{outline:none;border-color:var(--gold);}
+.sel:disabled{color:var(--text-faint);opacity:.45;cursor:not-allowed;}
+.sel option{background:#232218;}
+
+/* ── ITEM BODY ── */
+.qitem-body{padding:12px 14px;}
+.size-rows{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
+.srow{display:flex;align-items:center;gap:8px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;}
+.srow-cm{flex:0 0 100px;}
+.srow-price{flex:1;min-width:0;}
+.srow-del{flex:0 0 28px;}
+.sl{font-size:10px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;margin-bottom:3px;}
+.sinput{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;padding:6px 8px;width:100%;text-align:right;transition:border-color .2s;}
+.sinput:focus{outline:none;border-color:var(--gold);}
+.pdis{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:6px 10px;text-align:right;min-height:32px;display:flex;align-items:center;justify-content:flex-end;}
+.pcny{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;color:var(--gold-light);}
+.pusd{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);}
+.btn-rms{background:transparent;border:none;color:var(--text-faint);cursor:pointer;font-size:16px;padding:3px 6px;border-radius:4px;transition:all .2s;}
+.btn-rms:hover{color:var(--red);background:rgba(201,64,64,.1);}
+
+/* ── SURCHARGES ── */
+.surcharges{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:10px;}
+.surcharges-title{font-size:10px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;margin-bottom:8px;}
+.sc-row{display:grid;grid-template-columns:1fr 90px auto;gap:8px;align-items:center;margin-bottom:6px;}
+.sc-row:last-child{margin-bottom:0;}
+.sc-name{background:var(--surface3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'Noto Serif SC',serif;font-size:12px;padding:5px 8px;width:100%;}
+.sc-name:focus{outline:none;border-color:var(--gold);}
+.sc-amt{background:var(--surface3);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:5px 8px;width:100%;text-align:right;}
+.sc-amt:focus{outline:none;border-color:var(--gold);}
+.sc-unit{font-size:11px;color:var(--text-faint);white-space:nowrap;}
+
+/* ── ITEM FOOTER ── */
+.qitem-foot{display:flex;align-items:center;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border);}
+.btn-adds{background:transparent;border:1px dashed var(--border-light);color:var(--text-dim);border-radius:5px;padding:5px 14px;font-size:12px;cursor:pointer;transition:all .2s;}
+.btn-adds:hover{border-color:var(--gold);color:var(--gold);}
+
+.btn-add-item{background:transparent;border:1px dashed var(--gold-dim);color:var(--gold-dim);border-radius:8px;padding:13px;font-family:'Noto Serif SC',serif;font-size:13px;cursor:pointer;transition:all .25s;width:100%;margin-top:14px;letter-spacing:1px;}
+.btn-add-item:hover{border-color:var(--gold);color:var(--gold);background:rgba(201,162,39,.05);}
+
+/* ── QUOTE SUMMARY ── */
+.qsum{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-top:16px;}
+.qsum-title{font-size:13px;color:var(--gold);margin-bottom:14px;letter-spacing:1px;font-weight:600;}
+.qsum-item{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);}
+.qsum-item:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
+.qsum-item-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.qsum-size-row{display:flex;justify-content:space-between;align-items:center;padding:4px 10px;border-radius:4px;font-size:12px;}
+.qsum-size-row:nth-child(even){background:rgba(255,255,255,.02);}
+.qsum-size-label{color:var(--text-dim);font-family:'JetBrains Mono',monospace;}
+.qsum-price{font-family:'JetBrains Mono',monospace;color:var(--gold-light);font-weight:500;}
+.qsum-price-usd{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-faint);margin-left:10px;}
+
+/* ── MODALS ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:mIn .2s ease;}
+@keyframes mIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-title{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:5px;}
+.modal-sub{font-size:12px;color:var(--text-faint);margin-bottom:18px;line-height:1.6;}
+.mfield{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.mlabel{font-size:10px;color:var(--text-faint);font-family:'JetBrains Mono',monospace;letter-spacing:.5px;}
+.minput{background:var(--surface3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Noto Serif SC',serif;font-size:14px;padding:9px 12px;width:100%;transition:border-color .2s;}
+.minput:focus{outline:none;border-color:var(--gold);}
+.merr{font-size:12px;color:var(--red);margin-bottom:10px;min-height:16px;}
+.mbtns{display:flex;gap:8px;margin-top:4px;}
+.btn-primary{flex:1;background:var(--gold);color:#0f0e0c;border:none;border-radius:6px;padding:10px;font-family:'Noto Serif SC',serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;}
+.btn-primary:hover{background:var(--gold-light);}
+.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:10px 14px;font-family:'Noto Serif SC',serif;font-size:13px;cursor:pointer;transition:all .2s;}
+.btn-secondary:hover{border-color:var(--border-light);color:var(--text);}
+
+/* ── PLAN MANAGER (in modal) ── */
+.plan-list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto;margin-bottom:14px;}
+.plan-item{display:flex;align-items:center;gap:8px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;}
+.plan-item-name{flex:1;font-size:13px;color:var(--text);}
+.plan-item-link{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text-faint);background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:2px 6px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.plan-item-link:hover{border-color:var(--gold);color:var(--gold);}
+.plan-item-del{background:transparent;border:none;color:var(--text-faint);cursor:pointer;font-size:16px;padding:2px 4px;border-radius:3px;transition:all .2s;}
+.plan-item-del:hover{color:var(--red);}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ── DESKTOP OVERRIDES ── */
+@media(min-width:640px){
+  .topbar-row1{padding:0 24px;height:60px;}
+  .topbar-row2{display:none;}
+  .topbar-row1 .tab-btn{display:inline-flex;align-items:center;height:60px;padding:0 22px;}
+  .logo{font-size:17px;}
+  .panel{padding:24px 28px;}
+  .quote-top{grid-template-columns:1fr 130px 160px 110px;}
+  .sel-grid{grid-template-columns:repeat(4,1fr);}
+
+  .sc-row{grid-template-columns:1fr 100px auto;}
+  .auth-lbl{display:inline;}
+}
+@media(max-width:639px){
+  .topbar-row1 .tab-btn{display:none;}
+  .save-st{display:none;}
+  .auth-lbl{display:none;}
+  .quote-top{grid-template-columns:1fr 1fr;}
+  .quote-top .cg:first-child{grid-column:1/-1;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-row1">
+    <div class="logo"><div class="logo-hex">Z</div><span>长城拉链报价</span></div>
+    <!-- desktop tabs inline -->
+    <button class="tab-btn active" onclick="switchTab('settings',this)">⚙ 价格设置</button>
+    <button class="tab-btn" onclick="switchTab('quote',this)">📋 报价计算</button>
+    <div class="auth-zone">
+      <div class="auth-dot" id="auth-dot"></div>
+      <span class="auth-lbl" id="auth-lbl">未登录</span>
+      <span class="save-st" id="save-st"></span>
+      <button class="btn-sm" id="btn-auth" onclick="handleAuthBtn()">管理员登录</button>
+    </div>
+  </div>
+  <!-- mobile bottom tabs -->
+  <div class="topbar-row2">
+    <button class="tab-btn active" onclick="switchTab('settings',this)">⚙ 价格设置</button>
+    <button class="tab-btn" onclick="switchTab('quote',this)">📋 报价计算</button>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div class="panel active" id="panel-settings">
+  <!-- lock screen -->
+  <div id="settings-lock" class="settings-lock" style="display:none">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title">价格设置需要管理员权限</div>
+    <div class="lock-sub">请点击右上角「管理员登录」按钮，登录后即可编辑价格。</div>
+    <button class="btn-primary" style="width:140px;margin-top:4px" onclick="handleAuthBtn()">立即登录</button>
+  </div>
+  <!-- content (admin editable) -->
+  <div id="settings-content" style="display:none">
+    <!-- plan manager bar -->
+    <div class="plan-bar" id="plan-bar">
+      <span class="plan-bar-label">当前方案</span>
+      <div class="plan-pills" id="plan-pills"></div>
+      <button class="btn-new-plan" onclick="openModal('modal-plans')">⚙ 管理方案</button>
+    </div>
+    <div class="settings-topbar">
+      <div class="notice"><strong>说明：</strong>当前方案的价格数据。修改后点「保存到云端」，该方案所有设备同步。</div>
+      <div class="settings-actions">
+        <button class="btn-sm" onclick="openModal('modal-chpw')">改密码</button>
+        <button class="btn-primary" onclick="saveToCloud()" style="padding:7px 16px;font-size:12px">💾 保存到云端</button>
+      </div>
+    </div>
+    <div class="type-tabs">
+      <button class="type-tab active" onclick="switchTypeTab('metal',this)">金属</button>
+      <button class="type-tab" onclick="switchTypeTab('metaly',this)">金属Y牙</button>
+      <button class="type-tab" onclick="switchTypeTab('nylon',this)">尼龙</button>
+      <button class="type-tab" onclick="switchTypeTab('resin',this)">树脂</button>
+    </div>
+    <div class="type-panel active" id="type-metal"><div id="metal-wrap"></div></div>
+    <div class="type-panel" id="type-metaly"><div id="metaly-wrap"></div></div>
+    <div class="type-panel" id="type-nylon"><div id="nylon-wrap"></div></div>
+    <div class="type-panel" id="type-resin"><div id="resin-wrap"></div></div>
+  </div>
+  <!-- readonly view (agent) -->
+  <div id="settings-readonly" style="display:none">
+    <div class="plan-viewer-badge">📋 当前方案：<strong id="readonly-plan-name" style="margin-left:6px"></strong>（只读）</div>
+    <div class="type-tabs">
+      <button class="type-tab active" onclick="switchTypeTab('metal',this)">金属</button>
+      <button class="type-tab" onclick="switchTypeTab('metaly',this)">金属Y牙</button>
+      <button class="type-tab" onclick="switchTypeTab('nylon',this)">尼龙</button>
+      <button class="type-tab" onclick="switchTypeTab('resin',this)">树脂</button>
+    </div>
+    <div class="type-panel active" id="type-metal-ro"><div id="metal-wrap-ro"></div></div>
+    <div class="type-panel" id="type-metaly-ro"><div id="metaly-wrap-ro"></div></div>
+    <div class="type-panel" id="type-nylon-ro"><div id="nylon-wrap-ro"></div></div>
+    <div class="type-panel" id="type-resin-ro"><div id="resin-wrap-ro"></div></div>
+  </div>
+</div>
+
+<!-- QUOTE PANEL -->
+<div class="panel" id="panel-quote">
+  <div class="quote-top">
+    <div class="cg" style="grid-column:1/-1;order:-1">
+      <div class="clabel">报价单名称</div>
+      <input class="cinput" id="qtitle" type="text" placeholder="如：2025年7月 ABC品牌拉链报价">
+    </div>
+    <div class="cg">
+      <div class="clabel">汇率 (CNY→USD)</div>
+      <input class="cinput" id="rate" type="number" value="7.25" step="0.01" min="1" oninput="recalcAll()">
+    </div>
+    <div class="cg">
+      <div class="clabel">显示币种</div>
+      <select class="cinput" id="cmode" onchange="recalcAll()">
+        <option value="both">人民币 + 美元</option>
+        <option value="cny">仅人民币</option>
+        <option value="usd">仅美元</option>
+      </select>
+    </div>
+    <div class="cg">
+      <div class="clabel">长度单位</div>
+      <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:5px;overflow:hidden">
+        <button id="unit-cm" onclick="setUnit('cm')"
+          style="flex:1;padding:8px 6px;border:none;background:var(--gold);color:#0f0e0c;font-family:'Noto Serif SC',serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s">CM</button>
+        <button id="unit-inch" onclick="setUnit('inch')"
+          style="flex:1;padding:8px 6px;border:none;background:var(--surface3);color:var(--text-dim);font-family:'Noto Serif SC',serif;font-size:13px;cursor:pointer;transition:all .2s">Inch</button>
+      </div>
+    </div>
+  </div>
+  <div class="quote-items" id="qitems"></div>
+  <button class="btn-add-item" onclick="addItem()">＋ 添加拉链品种</button>
+  <div class="qsum" id="qsum" style="display:none"></div>
+</div>
+
+<!-- ── MODALS ── -->
+<!-- Login -->
+<div class="modal-overlay" id="modal-login">
+  <div class="modal">
+    <div class="modal-title">🔐 管理员登录</div>
+    <div class="modal-sub">登录后可编辑价格设置并同步到所有设备。</div>
+    <div class="mfield"><div class="mlabel">邮箱</div><input class="minput" id="login-email" type="email" placeholder="your@email.com" autocomplete="username"></div>
+    <div class="mfield"><div class="mlabel">密码</div><input class="minput" id="login-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="merr" id="login-err"></div>
+    <div class="mbtns"><button class="btn-secondary" onclick="closeModal('modal-login')">取消</button><button class="btn-primary" onclick="doLogin()">登录</button></div>
+  </div>
+</div>
+
+<!-- Change PW -->
+<div class="modal-overlay" id="modal-chpw">
+  <div class="modal">
+    <div class="modal-title">🔑 修改密码</div>
+    <div class="modal-sub">修改后需用新密码登录。</div>
+    <div class="mfield"><div class="mlabel">新密码（至少6位）</div><input class="minput" id="chpw-new" type="password" placeholder="输入新密码"></div>
+    <div class="mfield"><div class="mlabel">确认新密码</div><input class="minput" id="chpw-cf" type="password" placeholder="再次输入" onkeydown="if(event.key==='Enter')doChangePw()"></div>
+    <div class="merr" id="chpw-err"></div>
+    <div class="mbtns"><button class="btn-secondary" onclick="closeModal('modal-chpw')">取消</button><button class="btn-primary" onclick="doChangePw()">确认修改</button></div>
+  </div>
+</div>
+
+<!-- Firebase Config -->
+<div class="modal-overlay show" id="modal-config">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">⚙ Firebase 配置</div>
+    <div class="modal-sub">首次使用填入 Firebase 配置，完成后自动保存到浏览器。</div>
+    <div class="mfield"><div class="mlabel">API KEY</div><input class="minput" id="cfg-apikey" placeholder="AIzaSy..."></div>
+    <div class="mfield"><div class="mlabel">AUTH DOMAIN</div><input class="minput" id="cfg-authdomain" placeholder="your-project.firebaseapp.com"></div>
+    <div class="mfield"><div class="mlabel">DATABASE URL</div><input class="minput" id="cfg-dburl" placeholder="https://your-project-default-rtdb.asia-southeast1..."></div>
+    <div class="mfield"><div class="mlabel">PROJECT ID</div><input class="minput" id="cfg-projectid" placeholder="your-project-id"></div>
+    <div class="merr" id="cfg-err"></div>
+    <div class="mbtns"><button class="btn-secondary" onclick="skipConfig()">暂时跳过</button><button class="btn-primary" onclick="saveConfig()">连接 Firebase</button></div>
+  </div>
+</div>
+
+<!-- Plan Manager -->
+<div class="modal-overlay" id="modal-plans">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-title">📁 方案管理</div>
+    <div class="modal-sub">每个方案有独立的价格数据。可生成专属链接发给代理商。</div>
+    <div class="plan-list" id="plan-list"></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input class="minput" id="new-plan-name" placeholder="新方案名称（如：代理商甲）" style="flex:1">
+      <button class="btn-primary" onclick="createPlan()" style="padding:8px 14px;white-space:nowrap">新建</button>
+    </div>
+    <div class="merr" id="plans-err"></div>
+    <div class="mbtns"><button class="btn-primary" onclick="closeModal('modal-plans')">完成</button></div>
+  </div>
+</div>
+
+<!-- New Plan Name (rename) -->
+<div class="modal-overlay" id="modal-rename">
+  <div class="modal">
+    <div class="modal-title">重命名方案</div>
+    <div class="mfield"><div class="mlabel">方案名称</div><input class="minput" id="rename-input" placeholder="输入新名称" onkeydown="if(event.key==='Enter')doRename()"></div>
+    <div class="merr" id="rename-err"></div>
+    <div class="mbtns"><button class="btn-secondary" onclick="closeModal('modal-rename')">取消</button><button class="btn-primary" onclick="doRename()">确认</button></div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// DEFAULT PRICE DATA
+// ════════════════════════════════════════════════
+const MAT_LABELS=['黄铜','青古铜/镀白','双色古银/黑镍','黑古铜/红古铜','镀黄金/白金','镀黑金/浅金','铝齿'];
+
+function mkMetal(raw){
+  const o={};
+  for(const r of raw){
+    const[m,cm,...rest]=r;
+    if(!o[m])o[m]={};
+    o[m][cm]=[];
+    for(let i=0;i<7;i++)o[m][cm].push(rest.slice(i*3,i*3+3).map(v=>v===null?null:+v));
+  }
+  return o;
+}
+
+function defaultMD(){return mkMetal([
+  ['3#',20, 0.7371,0.02961,0.016, 0.77,0.032,0.018, 1.0925,0.0345,0.01725, 0.83,0.035,0.019, 0.85,0.035,0.019, 1.403,0.036,0.02, 0.5,0.01,0.006],
+  ['3#',60, 2.0097,0.02961,0.016, 2.13,0.032,0.018, 2.438,0.0345,0.01725,  2.31,0.035,0.019, 2.34,0.035,0.019, 2.4,0.036,0.02,  0.92,0.01,0.006],
+  ['4#',20, 0.8883,0.0378,0.021,  0.93,0.041,0.023, 1.38,0.04025,0.023,    1.01,0.045,0.025, 1.02,0.045,0.025, 1.7135,0.046,0.026, 0.54,0.012,0.007],
+  ['4#',60, 2.4885,0.0378,0.021,  2.64,0.041,0.023, 3.128,0.04025,0.023,   2.87,0.045,0.025, 2.89,0.045,0.025, 2.97,0.046,0.026,   1.03,0.012,0.007],
+  ['5#',20, 1.134,0.04725,0.026,  1.19,0.051,0.028, 1.495,0.046,0.02875,   1.28,0.055,0.031, 1.3,0.055,0.031,  1.863,0.057,0.032,  0.65,0.014,0.008],
+  ['5#',60, 3.1059,0.04725,0.026, 3.3,0.051,0.028,  3.404,0.046,0.02875,   3.58,0.055,0.031, 3.62,0.055,0.031, 3.71,0.057,0.032,   1.22,0.014,0.008],
+  ['7#',20, 1.4427,0.058,0.032,   1.48,0.059,0.033, 2.1045,0.00575,0.0345, 1.57,0.064,0.035, 1.61,0.064,0.035, 2.507,0.066,0.036,  null,null,null],
+  ['7#',60, 3.8241,0.058,0.032,   3.94,0.059,0.033, 4.715,0.00575,0.0345,  4.23,0.064,0.035, 4.31,0.064,0.035, 4.43,0.066,0.036,   null,null,null],
+  ['8#',20, 2.0286,0.08379,0.047, 2.07,0.086,0.048, 2.553,0.069,0.046,     2.19,0.093,0.052, 2.25,0.093,0.052, 2.967,0.096,0.053,  1.03,0.02,0.011],
+  ['8#',60, 5.47,0.08379,0.047,   5.63,0.086,0.048, 5.612,0.069,0.046,     6,0.093,0.052,    6.1,0.093,0.052,  6.24,0.096,0.053,   1.9,0.02,0.011],
+  ['10#',20,2.5011,0.108,0.06,    2.56,0.112,0.062, 3.427,0.092,0.06325,   2.73,0.12,0.067,  2.8,0.12,0.067,   3.9675,0.124,0.069, 1.2,0.026,0.014],
+  ['10#',60,6.9363,0.108,0.06,    7.14,0.112,0.062, 7.8775,0.092,0.06325,  7.66,0.12,0.067,  7.76,0.12,0.067,  7.96,0.124,0.069,   2.34,0.026,0.014],
+  ['12#',60,null,null,null,null,null,null,null,null,null,null,null,null,16.675,0.1495,0.0805,16.675,0.1495,0.0805,null,null,null],
+  ['12#',20,null,null,null,null,null,null,null,null,null,null,null,null,8.0155,0.1265,0.069,8.0155,0.1265,0.069,null,null,null],
+  ['15#',60,null,null,null,null,null,null,null,null,null,null,null,null,19.435,0.1725,0.1035,19.435,0.1725,0.1035,null,null,null],
+  ['15#',20,null,null,null,null,null,null,null,null,null,null,null,null,9.2,0.1495,0.0805,9.2,0.1495,0.0805,null,null,null],
+  ['3#双开',60,2.1798,0.03,0.016,2.2995,0.032,0.018,2.99,0.0345,0.0575,2.49,0.035,0.019,2.53,0.035,0.019,2.58,0.036,0.02,1.09,0.01,0.006],
+  ['5#双开',60,3.35,0.047,0.026,3.5406,0.051,0.028,3.887,0.046,0.02875,3.83,0.055,0.031,3.89,0.055,0.031,3.98,0.057,0.032,1.46,0.012,0.007],
+  ['7#双开',60,4.13,0.057,0.032,4.2525,0.059,0.033,5.29,0.0575,0.0345,4.54,0.064,0.035,4.64,0.064,0.035,4.76,0.066,0.036,null,null,null],
+  ['8#双开',60,5.9,0.084,0.047,6.0543,0.086,0.048,6.187,0.069,0.046,6.44,0.093,0.052,6.56,0.093,0.052,6.71,0.096,0.053,2.32,0.02,0.011],
+  ['10#双开',60,7.33,0.108,0.06,7.5348,0.112,0.062,8.165,0.092,0.06325,8.06,0.12,0.067,8.18,0.12,0.067,8.39,0.124,0.069,2.74,0.026,0.014],
+]);}
+
+function defaultMYD(){return mkMetal([
+  ['3#',20,0.81,0.033,0.019,0.85,0.036,0.02,1.15,0.0345,0.01725,0.91,0.04,0.022,0.93,0.04,0.022,0.95,0.041,0.023,null,null,null],
+  ['3#',60,2.23,0.033,0.019,2.37,0.036,0.02,2.553,0.0345,0.01725,2.58,0.04,0.022,2.61,0.04,0.022,2.68,0.041,0.023,null,null,null],
+  ['4#',20,0.97,0.043,0.024,1.02,0.046,0.026,1.3225,0.0391,0.023,1.1,0.05,0.028,1.12,0.05,0.028,1.14,0.052,0.029,null,null,null],
+  ['4#',60,2.75,0.043,0.024,2.92,0.046,0.026,3.35225,0.0391,0.023,3.18,0.05,0.028,3.21,0.05,0.028,3.29,0.052,0.029,null,null,null],
+  ['5#',20,1.13,0.047,0.026,1.18,0.05,0.028,1.587,0.046,0.02875,1.28,0.056,0.031,1.3,0.056,0.031,1.34,0.058,0.032,null,null,null],
+  ['5#',60,3.08,0.047,0.026,3.28,0.05,0.028,3.6225,0.046,0.02875,3.58,0.056,0.031,3.62,0.056,0.031,3.72,0.058,0.032,null,null,null],
+  ['7#',20,1.44,0.057,0.032,1.48,0.059,0.033,2.2517,0.0575,0.0345,1.58,0.064,0.036,1.63,0.064,0.036,1.66,0.066,0.037,null,null,null],
+  ['7#',60,3.83,0.057,0.032,3.95,0.059,0.033,5.336,0.0575,0.0345,4.25,0.064,0.036,4.33,0.064,0.036,4.45,0.066,0.037,null,null,null],
+  ['8#',20,1.85,0.074,0.041,1.9,0.076,0.042,2.645,0.083,0.046,2.02,0.083,0.046,2.09,0.083,0.046,2.13,0.086,0.048,null,null,null],
+  ['8#',60,4.9,0.074,0.041,5.05,0.076,0.042,5.727,0.083,0.046,5.45,0.083,0.046,5.54,0.083,0.046,5.7,0.086,0.048,null,null,null],
+  ['10#',20,2.16,0.088,0.049,2.22,0.091,0.051,3.128,0.08625,0.06325,2.37,0.1,0.055,2.44,0.1,0.055,2.5,0.103,0.057,null,null,null],
+  ['10#',60,5.83,0.088,0.049,6.01,0.091,0.051,7.728,0.08625,0.06325,6.48,0.1,0.055,6.58,0.1,0.055,6.78,0.103,0.057,null,null,null],
+  ['3#双开',60,2.4,0.033,0.019,2.54,0.036,0.02,3.312,0.0345,0.01725,2.75,0.04,0.022,2.79,0.04,0.022,2.86,0.041,0.023,null,null,null],
+  ['5#双开',60,3.32,0.047,0.026,3.52,0.05,0.028,4.14,0.046,0.02875,3.83,0.056,0.031,3.89,0.056,0.031,3.99,0.058,0.032,null,null,null],
+  ['7#双开',60,4.15,0.057,0.032,4.26,0.059,0.033,5.98,0.0575,0.0345,4.57,0.064,0.036,4.67,0.064,0.036,4.79,0.066,0.037,null,null,null],
+  ['8#双开',60,5.33,0.074,0.041,5.48,0.076,0.042,6.3825,0.069,0.046,5.89,0.083,0.046,6.01,0.083,0.046,6.16,0.086,0.048,null,null,null],
+  ['10#双开',60,6.22,0.088,0.049,6.41,0.091,0.051,8.51,0.08625,0.06325,6.89,0.1,0.055,7.01,0.1,0.055,7.2,0.103,0.057,null,null,null],
+]);}
+
+function defaultND(){return[
+  {name:'3#尼龙自动头闭口',cm:20,p:0.2835,inc:0.004725,dec:0.002625},
+  {name:'3#尼龙前后码注塑闭口',cm:20,p:0.3675,inc:0.004725,dec:0.002625},
+  {name:'3#尼龙开口/注塑开口',cm:60,p:0.7875,inc:0.004725,dec:0.002625},
+  {name:'3#尼龙注塑双开口',cm:60,p:1.05,inc:0.004725,dec:0.002625},
+  {name:'4#尼龙自动头闭口',cm:20,p:0.378,inc:0.00525,dec:0.00315},
+  {name:'4#尼龙前后码注塑闭口',cm:20,p:0.399,inc:0.00525,dec:0.00315},
+  {name:'4#尼龙开口/注塑开口',cm:60,p:0.819,inc:0.00525,dec:0.00315},
+  {name:'5#尼龙自动头闭口',cm:20,p:0.4725,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙前后注塑闭口',cm:20,p:0.5145,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙自动头开口',cm:60,p:0.966,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙自动头双开',cm:60,p:1.2285,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙注塑开口',cm:60,p:1.029,inc:0.0063,dec:0.00315},
+  {name:'5#尼龙注塑双开口',cm:60,p:1.2915,inc:0.0063,dec:0.00315},
+  {name:'8#尼龙注塑闭口',cm:20,p:0.7875,inc:0.0105,dec:0.00525},
+  {name:'8#尼龙自动头开口',cm:60,p:1.365,inc:0.0105,dec:0.00525},
+  {name:'8#尼龙注塑双开口',cm:60,p:1.89,inc:0.0105,dec:0.00525},
+  {name:'3#防水TPU闭口',cm:20,p:0.651,inc:0.01365,dec:0.0063},
+  {name:'3#防水TPU开口',cm:60,p:1.365,inc:0.01365,dec:0.0063},
+  {name:'3#防水电泳亚光闭口',cm:20,p:0.966,inc:0.0231,dec:0.01155},
+  {name:'3#防水电泳亚光开口',cm:60,p:2.1,inc:0.0231,dec:0.01155},
+  {name:'5#防水TPU闭口',cm:20,p:0.672,inc:0.01365,dec:0.0063},
+  {name:'5#防水TPU开口',cm:60,p:1.3545,inc:0.01365,dec:0.0063},
+  {name:'5#防水TPU双开口',cm:60,p:1.7325,inc:0.01365,dec:0.0063},
+  {name:'5#防水电泳亚光闭口',cm:20,p:1.0395,inc:0.0231,dec:0.01155},
+  {name:'5#防水电泳亚光开口',cm:60,p:2.1525,inc:0.0231,dec:0.01155},
+  {name:'5#防水电泳亚光双开口',cm:60,p:2.604,inc:0.0231,dec:0.01155},
+  {name:'3#金银齿闭口',cm:20,p:0.42,inc:0.00735,dec:0.003675},
+  {name:'3#金银齿开口/注塑开口',cm:60,p:0.966,inc:0.00735,dec:0.003675},
+  {name:'3#金银齿注塑双开口',cm:60,p:1.2075,inc:0.00735,dec:0.003675},
+  {name:'4#金银齿闭口',cm:20,p:0.5775,inc:0.008925,dec:0.0042},
+  {name:'4#金银齿开口/注塑开口',cm:60,p:1.0395,inc:0.008925,dec:0.0042},
+  {name:'5#金银齿闭口',cm:20,p:0.672,inc:0.01365,dec:0.0063},
+  {name:'5#金银齿前后注塑闭口',cm:20,p:0.7035,inc:0.01365,dec:0.0063},
+  {name:'5#金银齿开口/注塑开口',cm:60,p:1.4175,inc:0.01365,dec:0.0063},
+  {name:'5#金银齿双开/注塑双开',cm:60,p:1.68,inc:0.01365,dec:0.0063},
+];}
+
+function defaultRD(){return[
+  {name:'3#树脂闭口',cm:20,p:0.525,inc:0.0063,dec:0.00315},
+  {name:'3#树脂开口',cm:60,p:0.9975,inc:0.0063,dec:0.00315},
+  {name:'3#树脂双开',cm:60,p:1.3125,inc:0.0063,dec:0.00315},
+  {name:'5#树脂/细齿闭口',cm:20,p:0.57015,inc:0.0084,dec:0.0042},
+  {name:'5#树脂/细齿开口',cm:60,p:1.1025,inc:0.0084,dec:0.0042},
+  {name:'5#树脂双开',cm:60,p:1.365,inc:0.0084,dec:0.0042},
+  {name:'5#玉米牙/方块牙闭口',cm:20,p:0.609,inc:0.0084,dec:0.0042},
+  {name:'5#玉米牙/方块牙开口',cm:60,p:1.155,inc:0.0084,dec:0.0042},
+  {name:'5#轨道牙闭口',cm:20,p:0.609,inc:0.0084,dec:0.0042},
+  {name:'5#轨道牙开口',cm:60,p:1.155,inc:0.0084,dec:0.0042},
+  {name:'8#树脂/细齿闭口',cm:20,p:0.9765,inc:0.01365,dec:0.00735},
+  {name:'8#树脂/细齿开口',cm:60,p:1.785,inc:0.01365,dec:0.00735},
+  {name:'8#树脂双开',cm:60,p:2.2575,inc:0.01365,dec:0.00735},
+  {name:'8#轨道牙/玉米牙闭口',cm:20,p:0.9975,inc:0.01365,dec:0.00735},
+  {name:'8#轨道牙/玉米牙开口',cm:60,p:1.8375,inc:0.01365,dec:0.00735},
+  {name:'8#轨道牙双开口',cm:60,p:2.3625,inc:0.01365,dec:0.00735},
+  {name:'10#树脂闭口',cm:20,p:1.134,inc:0.0168,dec:0.0084},
+  {name:'10#树脂开口',cm:60,p:1.953,inc:0.0168,dec:0.0084},
+  {name:'10#树脂双开',cm:60,p:2.52,inc:0.0168,dec:0.0084},
+];}
+
+// ════════════════════════════════════════════════
+// ACTIVE PLAN DATA (current working copy)
+// ════════════════════════════════════════════════
+let MD=defaultMD(), MYD=defaultMYD(), ND=defaultND(), RD=defaultRD();
+
+// ════════════════════════════════════════════════
+// OPTION MAPS
+// ════════════════════════════════════════════════
+const METAL_BY_OPEN={'闭口':['3#','4#','5#','7#','8#','10#','12#','15#'],'开口':['3#','4#','5#','7#','8#','10#'],'双开口':['3#','5#','7#','8#','10#']};
+const NY_TREE={
+  '普通尼龙':{'3#':['自动头闭口','前后码注塑闭口','开口/注塑开口','注塑双开口'],'4#':['自动头闭口','前后码注塑闭口','开口/注塑开口'],'5#':['自动头闭口','前后注塑闭口','自动头开口','自动头双开','注塑开口','注塑双开口'],'8#':['注塑闭口','自动头开口','注塑双开口']},
+  '防水TPU':{'3#':['闭口','开口'],'5#':['闭口','开口','双开口']},
+  '防水电泳亚光':{'3#':['闭口','开口'],'5#':['闭口','开口','双开口']},
+  '金银齿':{'3#':['闭口','开口/注塑开口','注塑双开口'],'4#':['闭口','开口/注塑开口'],'5#':['闭口','前后注塑闭口','开口/注塑开口','双开/注塑双开']},
+};
+const RE_TREE={'3#':{'普通':['闭口','开口','双开']},'5#':{'普通/细齿':['闭口','开口','双开'],'玉米牙/方块牙':['闭口','开口'],'轨道牙':['闭口','开口']},'8#':{'普通/细齿':['闭口','开口','双开'],'轨道牙/玉米牙':['闭口','开口','双开口']},'10#':{'普通':['闭口','开口','双开']}};
+
+function nyIdx(sub,model,otype){
+  if(sub==='普通尼龙'){const map={'自动头闭口':'尼龙自动头闭口','前后码注塑闭口':'尼龙前后码注塑闭口','开口/注塑开口':'尼龙开口/注塑开口','注塑双开口':'尼龙注塑双开口','前后注塑闭口':'尼龙前后注塑闭口','自动头开口':'尼龙自动头开口','自动头双开':'尼龙自动头双开','注塑开口':'尼龙注塑开口','注塑闭口':'尼龙注塑闭口'};const frag=map[otype]||'尼龙'+otype;return ND.findIndex(r=>r.name===model+frag);}
+  if(sub==='防水TPU') return ND.findIndex(r=>r.name===`${model}防水TPU${otype}`);
+  if(sub==='防水电泳亚光') return ND.findIndex(r=>r.name===`${model}防水电泳亚光${otype}`);
+  if(sub==='金银齿') return ND.findIndex(r=>r.name===`${model}金银齿${otype}`);
+  return -1;
+}
+function reIdx(model,sub,otype){
+  const t=otype==='双开口'?'双开口':otype;
+  if(sub==='普通'||sub==='普通/细齿'){const r=RD.findIndex(r=>r.name===`${model}树脂/${sub==='普通/细齿'?'细齿':sub}${t}`);return r>=0?r:RD.findIndex(r=>r.name===`${model}树脂${t}`);}
+  return RD.findIndex(r=>r.name===`${model}${sub}${t}`);
+}
+
+// ════════════════════════════════════════════════
+// PRICE CALC
+// ════════════════════════════════════════════════
+function calcMetal(data,model,openType,matIdx,cm){
+  const key=openType==='双开口'?model+'双开':model;
+  const md=data[key];if(!md)return null;
+  const cms=Object.keys(md).map(Number).sort((a,b)=>a-b);
+  let base=cms[0];for(const c of cms)if(Math.abs(c-cm)<Math.abs(base-cm))base=c;
+  const v=md[base][matIdx];if(!v||v[0]===null)return null;
+  const diff=cm-base;
+  return diff>0?v[0]+diff*v[1]:diff<0?v[0]-Math.abs(diff)*v[2]:v[0];
+}
+function calcSimple(rows,idx,cm){
+  const r=rows[idx];if(!r)return null;
+  const diff=cm-r.cm;
+  return diff>0?r.p+diff*r.inc:diff<0?r.p-Math.abs(diff)*r.dec:r.p;
+}
+
+// ════════════════════════════════════════════════
+// KEY ENCODE/DECODE (Firebase doesn't allow # in keys)
+// ════════════════════════════════════════════════
+function encodeKeys(obj){
+  if(Array.isArray(obj))return obj.map(encodeKeys);
+  if(obj!==null&&typeof obj==='object'){const o={};for(const k of Object.keys(obj))o[k.replace(/#/g,'__H__')]=encodeKeys(obj[k]);return o;}
+  return obj;
+}
+function decodeKeys(obj){
+  if(Array.isArray(obj))return obj.map(decodeKeys);
+  if(obj!==null&&typeof obj==='object'){const o={};for(const k of Object.keys(obj))o[k.replace(/__H__/g,'#')]=decodeKeys(obj[k]);return o;}
+  return obj;
+}
+
+// ════════════════════════════════════════════════
+// SETTINGS RENDER
+// ════════════════════════════════════════════════
+function renderMetal(wid,data,editable){
+  const models=Object.keys(data);
+  const dis=editable?'':'disabled';
+  let h=`<div class="tbl-wrap" style="overflow-x:auto"><table class="stbl"><thead>
+  <tr><th>型号</th><th>CM</th>${MAT_LABELS.map(m=>`<th colspan="3" style="color:var(--gold-light)">${m}</th>`).join('')}</tr>
+  <tr><th></th><th></th>${MAT_LABELS.map(()=>'<th>单价</th><th>增/CM</th><th>减/CM</th>').join('')}</tr>
+  </thead><tbody>`;
+  for(const m of models){
+    for(const cm of Object.keys(data[m]).map(Number).sort((a,b)=>a-b)){
+      const mats=data[m][cm];
+      h+=`<tr><td style="font-weight:600;white-space:nowrap">${m}</td><td>${cm}</td>`;
+      for(let i=0;i<7;i++){
+        const v=mats[i];
+        if(!v||v[0]===null)h+=`<td colspan="3" style="color:var(--text-faint)">—</td>`;
+        else if(editable)h+=`<td><input class="ni" ${dis} type="number" step="0.0001" value="${v[0]}" onchange="updM('MD','${m}',${cm},${i},0,this.value)"></td><td><input class="ni" ${dis} type="number" step="0.0001" value="${v[1]}" onchange="updM('MD','${m}',${cm},${i},1,this.value)"></td><td><input class="ni" ${dis} type="number" step="0.0001" value="${v[2]}" onchange="updM('MD','${m}',${cm},${i},2,this.value)"></td>`;
+        else h+=`<td style="font-family:'JetBrains Mono',monospace;font-size:11px">${v[0]}</td><td style="font-family:'JetBrains Mono',monospace;font-size:11px">${v[1]}</td><td style="font-family:'JetBrains Mono',monospace;font-size:11px">${v[2]}</td>`;
+      }
+      h+='</tr>';
+    }
+  }
+  h+='</tbody></table></div>';
+  document.getElementById(wid).innerHTML=h;
+}
+function renderMetalY(wid,data,editable){
+  const models=Object.keys(data);
+  const dis=editable?'':'disabled';
+  let h=`<div class="tbl-wrap" style="overflow-x:auto"><table class="stbl"><thead>
+  <tr><th>型号</th><th>CM</th>${MAT_LABELS.map(m=>`<th colspan="3" style="color:var(--gold-light)">${m}</th>`).join('')}</tr>
+  <tr><th></th><th></th>${MAT_LABELS.map(()=>'<th>单价</th><th>增/CM</th><th>减/CM</th>').join('')}</tr>
+  </thead><tbody>`;
+  for(const m of models){
+    for(const cm of Object.keys(data[m]).map(Number).sort((a,b)=>a-b)){
+      const mats=data[m][cm];
+      h+=`<tr><td style="font-weight:600;white-space:nowrap">${m}</td><td>${cm}</td>`;
+      for(let i=0;i<7;i++){
+        const v=mats[i];
+        if(!v||v[0]===null)h+=`<td colspan="3" style="color:var(--text-faint)">—</td>`;
+        else if(editable)h+=`<td><input class="ni" type="number" step="0.0001" value="${v[0]}" onchange="updM('MYD','${m}',${cm},${i},0,this.value)"></td><td><input class="ni" type="number" step="0.0001" value="${v[1]}" onchange="updM('MYD','${m}',${cm},${i},1,this.value)"></td><td><input class="ni" type="number" step="0.0001" value="${v[2]}" onchange="updM('MYD','${m}',${cm},${i},2,this.value)"></td>`;
+        else h+=`<td style="font-family:'JetBrains Mono',monospace;font-size:11px">${v[0]}</td><td style="font-family:'JetBrains Mono',monospace;font-size:11px">${v[1]}</td><td style="font-family:'JetBrains Mono',monospace;font-size:11px">${v[2]}</td>`;
+      }
+      h+='</tr>';
+    }
+  }
+  h+='</tbody></table></div>';
+  document.getElementById(wid).innerHTML=h;
+}
+function renderSimple(wid,data,dkey,editable){
+  let h=`<div class="tbl-wrap"><table class="stbl"><thead><tr><th style="text-align:left;width:38%">品名</th><th>基准CM</th><th>单价(元)</th><th>增/CM</th><th>减/CM</th></tr></thead><tbody>`;
+  data.forEach((r,i)=>{
+    if(editable)h+=`<tr><td><input type="text" class="ni wfull" value="${r.name}" onchange="${dkey}[${i}].name=this.value;recalcAll();markDirty()"></td><td><input class="ni w55" type="number" value="${r.cm}" onchange="${dkey}[${i}].cm=+this.value;recalcAll();markDirty()"></td><td><input class="ni" type="number" step="0.0001" value="${r.p}" onchange="${dkey}[${i}].p=+this.value;recalcAll();markDirty()"></td><td><input class="ni" type="number" step="0.0001" value="${r.inc}" onchange="${dkey}[${i}].inc=+this.value;recalcAll();markDirty()"></td><td><input class="ni" type="number" step="0.0001" value="${r.dec}" onchange="${dkey}[${i}].dec=+this.value;recalcAll();markDirty()"></td></tr>`;
+    else h+=`<tr><td>${r.name}</td><td style="font-family:'JetBrains Mono',monospace">${r.cm}</td><td style="font-family:'JetBrains Mono',monospace">${r.p}</td><td style="font-family:'JetBrains Mono',monospace">${r.inc}</td><td style="font-family:'JetBrains Mono',monospace">${r.dec}</td></tr>`;
+  });
+  h+='</tbody></table></div>';
+  document.getElementById(wid).innerHTML=h;
+}
+function updM(dkey,m,cm,mi,vi,val){
+  (dkey==='MD'?MD:MYD)[m][cm][mi][vi]=+val;
+  recalcAll();markDirty();
+}
+function markDirty(){setSaveStatus('● 未保存','saving');}
+
+function renderSettingsEditable(){
+  renderMetal('metal-wrap',MD,true);
+  renderMetalY('metaly-wrap',MYD,true);
+  renderSimple('nylon-wrap',ND,'ND',true);
+  renderSimple('resin-wrap',RD,'RD',true);
+}
+function renderSettingsReadonly(){
+  renderMetal('metal-wrap-ro',MD,false);
+  renderMetalY('metaly-wrap-ro',MYD,false);
+  renderSimple('nylon-wrap-ro',ND,'ND',false);
+  renderSimple('resin-wrap-ro',RD,'RD',false);
+}
+
+// ════════════════════════════════════════════════
+// FIREBASE & AUTH
+// ════════════════════════════════════════════════
+let db=null,auth=null,fbReady=false,isAdmin=false;
+let currentPlanId=null; // null = default/master plan
+let plans={}; // {planId: {name, MD, MYD, ND, RD}}
+let agentPlanId=null; // set if URL has ?plan=xxx
+let adminFirstLoaded=false;
+
+function loadSavedConfig(){try{const s=localStorage.getItem('fb_cfg');return s?JSON.parse(s):null;}catch(e){return null;}}
+
+function initFirebase(cfg){
+  try{
+    if(!firebase.apps.length){
+      firebase.initializeApp({apiKey:cfg.apiKey,authDomain:cfg.authDomain,databaseURL:cfg.databaseURL,projectId:cfg.projectId});
+    }
+    db=firebase.database();
+    auth=firebase.auth();
+    fbReady=true;
+    localStorage.setItem('fb_cfg',JSON.stringify(cfg));
+    auth.onAuthStateChanged(user=>{
+      isAdmin=!!user;
+      updateAuthUI(user);
+      if(agentPlanId){
+        // Agent mode: just load their plan, no admin UI
+        loadAgentPlan(agentPlanId);
+      } else if(user){
+        loadAdminData();
+      } else {
+        showSettingsLock();
+      }
+    });
+    setSaveStatus('已连接','saved');
+    setTimeout(()=>setSaveStatus('',''),2000);
+    return true;
+  }catch(e){console.error(e);return false;}
+}
+
+// ── AGENT MODE ──
+function loadAgentPlan(planId){
+  db.ref(`plans/${planId}`).on('value',snap=>{
+    const data=snap.val();
+    if(!data){
+      document.getElementById('settings-lock').style.display='flex';
+      document.getElementById('settings-lock').querySelector('.lock-title').textContent='方案不存在或已失效';
+      return;
+    }
+    if(data.MD) MD=decodeKeys(data.MD);
+    if(data.MYD) MYD=decodeKeys(data.MYD);
+    if(data.ND) ND=data.ND;
+    if(data.RD) RD=data.RD;
+    document.getElementById('settings-lock').style.display='none';
+    document.getElementById('settings-content').style.display='none';
+    document.getElementById('settings-readonly').style.display='block';
+    document.getElementById('readonly-plan-name').textContent=data.name||'专属方案';
+    renderSettingsReadonly();
+    recalcAll();
+  });
+}
+
+// ── ADMIN DATA ──
+function loadAdminData(){
+  if(adminFirstLoaded) return;
+  adminFirstLoaded=true;
+  // Load master plan + all plans list
+  db.ref('master').once('value',snap=>{
+    const data=snap.val();
+    if(data){
+      if(data.MD) MD=decodeKeys(data.MD);
+      if(data.MYD) MYD=decodeKeys(data.MYD);
+      if(data.ND) ND=data.ND;
+      if(data.RD) RD=data.RD;
+    }
+    showSettingsAdmin();
+    recalcAll();
+  });
+  db.ref('plans').on('value',snap=>{
+    plans={};
+    const data=snap.val()||{};
+    for(const [k,v] of Object.entries(data)) plans[k]={name:v.name||k};
+    renderPlanPills();
+    renderPlanList();
+  });
+}
+
+function showSettingsLock(){
+  document.getElementById('settings-lock').style.display='flex';
+  document.getElementById('settings-content').style.display='none';
+  document.getElementById('settings-readonly').style.display='none';
+}
+function showSettingsAdmin(){
+  document.getElementById('settings-lock').style.display='none';
+  document.getElementById('settings-content').style.display='block';
+  document.getElementById('settings-readonly').style.display='none';
+  renderSettingsEditable();
+}
+
+// ── PLAN PILLS ──
+function renderPlanPills(){
+  const cont=document.getElementById('plan-pills');
+  let h=`<button class="plan-pill${currentPlanId===null?' active':''}" onclick="switchPlan(null)">我的方案（主）</button>`;
+  for(const [id,p] of Object.entries(plans)){
+    h+=`<button class="plan-pill${currentPlanId===id?' active':''}" onclick="switchPlan('${id}')">${p.name}</button>`;
+  }
+  cont.innerHTML=h;
+}
+
+function switchPlan(planId){
+  if(planId===currentPlanId) return;
+  // Save current plan first
+  _savePlanLocal(currentPlanId);
+  currentPlanId=planId;
+  _loadPlanLocal(planId);
+  renderPlanPills();
+  renderSettingsEditable();
+  recalcAll();
+  setSaveStatus('已切换方案，记得保存到云端','saving');
+}
+
+// local cache of plan data while admin works
+const planCache={};
+function _savePlanLocal(planId){
+  const key=planId||'__master__';
+  planCache[key]={MD:JSON.parse(JSON.stringify(MD)),MYD:JSON.parse(JSON.stringify(MYD)),ND:JSON.parse(JSON.stringify(ND)),RD:JSON.parse(JSON.stringify(RD))};
+}
+function _loadPlanLocal(planId){
+  const key=planId||'__master__';
+  if(planCache[key]){
+    MD=JSON.parse(JSON.stringify(planCache[key].MD));
+    MYD=JSON.parse(JSON.stringify(planCache[key].MYD));
+    ND=JSON.parse(JSON.stringify(planCache[key].ND));
+    RD=JSON.parse(JSON.stringify(planCache[key].RD));
+  } else {
+    // Load fresh from Firebase
+    const ref=planId?db.ref(`plans/${planId}`):db.ref('master');
+    ref.once('value',snap=>{
+      const data=snap.val();
+      if(data){
+        if(data.MD) MD=decodeKeys(data.MD);
+        if(data.MYD) MYD=decodeKeys(data.MYD);
+        if(data.ND) ND=data.ND;
+        if(data.RD) RD=data.RD;
+      } else {
+        MD=defaultMD();MYD=defaultMYD();ND=defaultND();RD=defaultRD();
+      }
+      renderSettingsEditable();recalcAll();
+    });
+  }
+}
+
+// ── SAVE TO CLOUD ──
+async function saveToCloud(){
+  if(!fbReady||!isAdmin){alert('请先登录管理员账号');return;}
+  setSaveStatus('保存中…','saving');
+  const payload={MD:encodeKeys(MD),MYD:encodeKeys(MYD),ND,RD};
+  try{
+    if(currentPlanId===null){
+      await db.ref('master').set(payload);
+    } else {
+      await db.ref(`plans/${currentPlanId}`).update({...payload,name:plans[currentPlanId]?.name||'方案'});
+    }
+    _savePlanLocal(currentPlanId);
+    setSaveStatus('✓ 已同步','saved');
+    setTimeout(()=>setSaveStatus('',''),3000);
+  }catch(e){
+    setSaveStatus('保存失败','error');
+    alert('保存失败：'+e.message);
+  }
+}
+
+// ── PLAN MANAGEMENT ──
+async function createPlan(){
+  const nameEl=document.getElementById('new-plan-name');
+  const name=nameEl.value.trim();
+  if(!name){document.getElementById('plans-err').textContent='请输入方案名称';return;}
+  // Copy current master data as starting point
+  const masterCache=planCache['__master__']||{MD,MYD,ND,RD};
+  const payload={name,MD:encodeKeys(masterCache.MD),MYD:encodeKeys(masterCache.MYD),ND:masterCache.ND,RD:masterCache.RD};
+  try{
+    const ref=await db.ref('plans').push(payload);
+    nameEl.value='';
+    document.getElementById('plans-err').textContent='';
+  }catch(e){document.getElementById('plans-err').textContent='创建失败：'+e.message;}
+}
+
+async function deletePlan(planId){
+  if(!confirm(`确认删除方案「${plans[planId]?.name}」？此操作不可撤销。`))return;
+  try{
+    await db.ref(`plans/${planId}`).remove();
+    if(currentPlanId===planId){currentPlanId=null;_loadPlanLocal(null);}
+    renderPlanPills();
+  }catch(e){alert('删除失败：'+e.message);}
+}
+
+function copyPlanLink(planId){
+  const url=`${location.origin}${location.pathname}?plan=${planId}`;
+  navigator.clipboard.writeText(url).then(()=>{
+    alert(`链接已复制到剪贴板！\n\n${url}`);
+  }).catch(()=>{
+    prompt('复制此链接发给代理商：',url);
+  });
+}
+
+let renamingPlanId=null;
+function openRename(planId){
+  renamingPlanId=planId;
+  document.getElementById('rename-input').value=plans[planId]?.name||'';
+  document.getElementById('rename-err').textContent='';
+  openModal('modal-rename');
+}
+async function doRename(){
+  const name=document.getElementById('rename-input').value.trim();
+  if(!name){document.getElementById('rename-err').textContent='请输入名称';return;}
+  try{
+    await db.ref(`plans/${renamingPlanId}/name`).set(name);
+    closeModal('modal-rename');
+  }catch(e){document.getElementById('rename-err').textContent='修改失败：'+e.message;}
+}
+
+function renderPlanList(){
+  const cont=document.getElementById('plan-list');
+  if(!Object.keys(plans).length){cont.innerHTML='<div style="color:var(--text-faint);font-size:12px;text-align:center;padding:16px">还没有代理商方案，在下方输入名称新建</div>';return;}
+  let h='';
+  for(const [id,p] of Object.entries(plans)){
+    h+=`<div class="plan-item">
+      <div class="plan-item-name">${p.name}</div>
+      <button class="plan-item-link" onclick="copyPlanLink('${id}')">复制链接</button>
+      <button class="btn-sm" onclick="openRename('${id}')" style="padding:3px 8px;font-size:11px">改名</button>
+      <button class="plan-item-del" onclick="deletePlan('${id}')">🗑</button>
+    </div>`;
+  }
+  cont.innerHTML=h;
+}
+
+// ── AUTH UI ──
+function updateAuthUI(user){
+  const dot=document.getElementById('auth-dot');
+  const lbl=document.getElementById('auth-lbl');
+  const btn=document.getElementById('btn-auth');
+  if(user){dot.classList.add('on');lbl.textContent='管理员';btn.textContent='退出';btn.className='btn-sm danger';}
+  else{dot.classList.remove('on');lbl.textContent=fbReady?'访客':'未连接';btn.textContent='管理员登录';btn.className='btn-sm';}
+}
+function setSaveStatus(msg,type){const el=document.getElementById('save-st');el.textContent=msg;el.className='save-st '+(type||'');}
+function handleAuthBtn(){isAdmin?doLogout():openModal('modal-login');}
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-pw').value;
+  const err=document.getElementById('login-err');err.textContent='';
+  if(!email||!pw){err.textContent='请填写邮箱和密码';return;}
+  try{await auth.signInWithEmailAndPassword(email,pw);closeModal('modal-login');document.getElementById('login-pw').value='';adminFirstLoaded=false;}
+  catch(e){const m={'auth/wrong-password':'密码错误','auth/user-not-found':'用户不存在','auth/invalid-email':'邮箱格式不正确','auth/too-many-requests':'尝试次数过多'};err.textContent=m[e.code]||'登录失败';}
+}
+function doLogout(){if(!confirm('确认退出管理员？'))return;auth.signOut();adminFirstLoaded=false;currentPlanId=null;}
+async function doChangePw(){
+  const nw=document.getElementById('chpw-new').value,cf=document.getElementById('chpw-cf').value,err=document.getElementById('chpw-err');err.textContent='';
+  if(nw.length<6){err.textContent='密码至少6位';return;}
+  if(nw!==cf){err.textContent='两次输入不一致';return;}
+  try{await auth.currentUser.updatePassword(nw);closeModal('modal-chpw');alert('密码修改成功！');}
+  catch(e){err.textContent=e.code==='auth/requires-recent-login'?'请退出后重新登录再修改密码':'修改失败：'+e.message;}
+}
+function saveConfig(){
+  const cfg={apiKey:document.getElementById('cfg-apikey').value.trim(),authDomain:document.getElementById('cfg-authdomain').value.trim(),databaseURL:document.getElementById('cfg-dburl').value.trim(),projectId:document.getElementById('cfg-projectid').value.trim()};
+  const err=document.getElementById('cfg-err');
+  if(!cfg.apiKey||!cfg.databaseURL||!cfg.projectId){err.textContent='请填写所有必填项';return;}
+  if(initFirebase(cfg)){closeModal('modal-config');}
+  else{err.textContent='连接失败，请检查配置是否正确';}
+}
+function skipConfig(){closeModal('modal-config');showSettingsLock();setSaveStatus('本地模式','');}
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+document.querySelectorAll('.modal-overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o&&o.id!=='modal-config')closeModal(o.id);});});
+
+// ════════════════════════════════════════════════
+// QUOTE ITEMS
+// ════════════════════════════════════════════════
+let items=[],idc=0;
+
+function defaultItem(){
+  return {type:'金属拉链',openType:'闭口',model:'5#',matIdx:0,
+    nylonSub:'普通尼龙',nylonModel:'5#',nylonOpen:'自动头闭口',
+    resinModel:'5#',resinSub:'普通/细齿',resinOpen:'闭口',
+    sizes:[{cm:20}],
+    surcharges:[{name:'附加费1',amt:0},{name:'附加费2',amt:0},{name:'附加费3',amt:0}]};
+}
+function addItem(){const id=++idc;items.push({id,...defaultItem()});renderItems();recalcAll();}
+function removeItem(id){items=items.filter(i=>i.id!==id);renderItems();recalcAll();}
+function addSize(id){const it=items.find(i=>i.id===id);if(it){it.sizes.push({cm:20});renderItems();recalcAll();}}
+function removeSize(id,si){const it=items.find(i=>i.id===id);if(it&&it.sizes.length>1){it.sizes.splice(si,1);renderItems();recalcAll();}}
+
+function itemLabel(it){
+  if(it.type==='金属拉链'||it.type==='金属Y牙') return `${it.type} · ${it.model} · ${MAT_LABELS[it.matIdx]} · ${it.openType}`;
+  if(it.type==='尼龙拉链') return `${it.type} · ${it.nylonSub} · ${it.nylonModel} · ${it.nylonOpen}`;
+  if(it.type==='树脂拉链') return `${it.type} · ${it.resinModel} · ${it.resinSub} · ${it.resinOpen}`;
+  return it.type;
+}
+
+function selHtml(it){
+  const id=it.id,t=it.type;
+  function mkSel(lbl,opts,cur,fn){return`<div class="sel-grp"><div class="sel-lbl">${lbl}</div><select class="sel" onchange="${fn}(${id},this.value)">${opts.map(o=>`<option${o===cur?' selected':''}>${o}</option>`).join('')}</select></div>`;}
+  const d1=mkSel('拉链类型',['金属拉链','金属Y牙','尼龙拉链','树脂拉链'],t,'onType');
+  let d2='',d3='',d4='';
+  if(t==='金属拉链'||t==='金属Y牙'){
+    d2=mkSel('开合类型',['闭口','开口','双开口'],it.openType,'onMetalOpen');
+    d3=mkSel('型号',METAL_BY_OPEN[it.openType]||METAL_BY_OPEN['闭口'],it.model,'onMetalModel');
+    const data=t==='金属Y牙'?MYD:MD,key=it.openType==='双开口'?it.model+'双开':it.model,md=data[key];
+    const matOpts=MAT_LABELS.map((lbl,i)=>{let a=false;if(md)for(const cm of Object.keys(md)){const v=md[cm][i];if(v&&v[0]!==null){a=true;break;}}return{lbl,i,a};});
+    d4=`<div class="sel-grp"><div class="sel-lbl">颜色/材质</div><select class="sel" onchange="onMetalMat(${id},this.value)">${matOpts.map(m=>`<option value="${m.i}"${m.i===it.matIdx?' selected':''}${!m.a?' disabled':''}>${!m.a?'✗ ':''}${m.lbl}</option>`).join('')}</select></div>`;
+  } else if(t==='尼龙拉链'){
+    d2=mkSel('品种/工艺',Object.keys(NY_TREE),it.nylonSub,'onNylonSub');
+    d3=mkSel('型号',Object.keys(NY_TREE[it.nylonSub]||{}),it.nylonModel,'onNylonModel');
+    d4=mkSel('开合类型',(NY_TREE[it.nylonSub]||{})[it.nylonModel]||[],it.nylonOpen,'onNylonOpen');
+  } else if(t==='树脂拉链'){
+    d2=mkSel('型号',Object.keys(RE_TREE),it.resinModel,'onResinModel');
+    d3=mkSel('齿型',Object.keys(RE_TREE[it.resinModel]||{}),it.resinSub,'onResinSub');
+    d4=mkSel('开合类型',(RE_TREE[it.resinModel]||{})[it.resinSub]||[],it.resinOpen,'onResinOpen');
+  }
+  return`<div class="sel-grid">${d1}${d2}${d3}${d4}</div>`;
+}
+
+function scHtml(it){
+  const id=it.id;
+  const rows=it.surcharges.map((sc,si)=>`
+  <div class="sc-row">
+    <input class="sc-name" type="text" value="${sc.name}" placeholder="附加费名称"
+      onchange="items.find(i=>i.id===${id}).surcharges[${si}].name=this.value;recalcAll()">
+    <input class="sc-amt" type="number" value="${sc.amt}" step="0.001" min="0"
+      onchange="items.find(i=>i.id===${id}).surcharges[${si}].amt=parseFloat(this.value)||0;recalcAll()">
+    <span class="sc-unit">元/条</span>
+  </div>`).join('');
+  return`<div class="surcharges"><div class="surcharges-title">附加费（将叠加进每条单价）</div>${rows}</div>`;
+}
+
+function sizeRowHtml(iid,si,s){
+  const unit=currentUnit;
+  const displayVal=unit==='inch'?cmToInch(s.cm||20):(s.cm||20);
+  const step=unit==='inch'?'0.1':'1';
+  return`<div class="srow">
+  <div class="srow-cm">
+    <div class="sl">${unit==='inch'?'长度(inch)':'长度(CM)'}</div>
+    <input class="sinput" type="number" value="${displayVal}" min="0.1" step="${step}"
+      onchange="updateSizeCm(${iid},${si},this.value)">
+  </div>
+  <div class="srow-price">
+    <div class="sl">单价 CNY</div>
+    <div class="pdis"><span class="pcny" id="pcny-${iid}-${si}">—</span></div>
+  </div>
+  <div class="srow-price">
+    <div class="sl">单价 USD</div>
+    <div class="pdis"><span class="pusd" id="pusd-${iid}-${si}">—</span></div>
+  </div>
+  <div class="srow-del"><button class="btn-rms" onclick="removeSize(${iid},${si})" title="删除">×</button></div>
+  </div>`;
+}
+
+// change handlers
+function onType(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.type=val;if(val==='金属拉链'||val==='金属Y牙'){it.model='5#';it.openType='闭口';it.matIdx=0;}else if(val==='尼龙拉链'){it.nylonSub='普通尼龙';it.nylonModel='5#';it.nylonOpen='自动头闭口';}else{it.resinModel='5#';it.resinSub='普通/细齿';it.resinOpen='闭口';}renderItems();recalcAll();}
+function onMetalOpen(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.openType=val;const m=METAL_BY_OPEN[val]||[];if(!m.includes(it.model))it.model=m[0];renderItems();recalcAll();}
+function onMetalModel(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.model=val;renderItems();recalcAll();}
+function onMetalMat(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.matIdx=+val;renderItems();recalcAll();}
+function onNylonSub(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.nylonSub=val;const m=Object.keys(NY_TREE[val]||{});it.nylonModel=m[0]||'3#';it.nylonOpen=((NY_TREE[val]||{})[it.nylonModel]||[])[0]||'闭口';renderItems();recalcAll();}
+function onNylonModel(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.nylonModel=val;const o=((NY_TREE[it.nylonSub]||{})[val]||[]);if(!o.includes(it.nylonOpen))it.nylonOpen=o[0]||'闭口';renderItems();recalcAll();}
+function onNylonOpen(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.nylonOpen=val;recalcAll();}
+function onResinModel(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.resinModel=val;const s=Object.keys(RE_TREE[val]||{});it.resinSub=s[0];it.resinOpen=((RE_TREE[val]||{})[it.resinSub]||[])[0]||'闭口';renderItems();recalcAll();}
+function onResinSub(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.resinSub=val;const o=((RE_TREE[it.resinModel]||{})[val]||[]);it.resinOpen=o[0]||'闭口';renderItems();recalcAll();}
+function onResinOpen(id,val){const it=items.find(i=>i.id===id);if(!it)return;it.resinOpen=val;recalcAll();}
+
+function renderItems(){
+  const cont=document.getElementById('qitems');
+  cont.innerHTML='';
+  items.forEach((it,idx)=>{
+    const el=document.createElement('div');
+    el.className='qitem';el.id=`item-${it.id}`;
+    el.innerHTML=`
+    <div class="qitem-head">
+      <div class="inum">${idx+1}</div>
+      <div class="item-label">${itemLabel(it)}</div>
+      <button class="btn-rm" onclick="removeItem(${it.id})">移除</button>
+    </div>
+    ${selHtml(it)}
+    <div class="qitem-body">
+      ${scHtml(it)}
+      <div class="size-rows" id="szrows-${it.id}">
+        ${it.sizes.map((s,si)=>sizeRowHtml(it.id,si,s)).join('')}
+      </div>
+      <div class="qitem-foot">
+        <button class="btn-adds" onclick="addSize(${it.id})">＋ 添加长度</button>
+      </div>
+    </div>`;
+    cont.appendChild(el);
+  });
+}
+
+// ── PRICE LOOKUP ──
+function getPrice(it,cm){
+  const t=it.type;
+  if(t==='金属拉链'||t==='金属Y牙') return calcMetal(t==='金属Y牙'?MYD:MD,it.model,it.openType,it.matIdx,cm);
+  if(t==='尼龙拉链'){const idx=nyIdx(it.nylonSub,it.nylonModel,it.nylonOpen);return idx>=0?calcSimple(ND,idx,cm):null;}
+  if(t==='树脂拉链'){const idx=reIdx(it.resinModel,it.resinSub,it.resinOpen);return idx>=0?calcSimple(RD,idx,cm):null;}
+  return null;
+}
+
+// ════════════════════════════════════════════════
+// UNIT CONVERSION
+// ════════════════════════════════════════════════
+let currentUnit = 'cm'; // 'cm' | 'inch'
+const CM_PER_INCH = 2.54;
+function cmToInch(cm){ return Math.round(cm / CM_PER_INCH * 10) / 10; }
+function inchToCm(inch){ return Math.round(inch * CM_PER_INCH * 10) / 10; }
+
+function setUnit(unit){
+  if(currentUnit === unit) return;
+  currentUnit = unit;
+  // Update button styles
+  document.getElementById('unit-cm').style.background = unit==='cm' ? 'var(--gold)' : 'var(--surface3)';
+  document.getElementById('unit-cm').style.color = unit==='cm' ? '#0f0e0c' : 'var(--text-dim)';
+  document.getElementById('unit-cm').style.fontWeight = unit==='cm' ? '700' : '400';
+  document.getElementById('unit-inch').style.background = unit==='inch' ? 'var(--gold)' : 'var(--surface3)';
+  document.getElementById('unit-inch').style.color = unit==='inch' ? '#0f0e0c' : 'var(--text-dim)';
+  document.getElementById('unit-inch').style.fontWeight = unit==='inch' ? '700' : '400';
+  // Re-render items to update input labels and values
+  renderItems();
+  recalcAll();
+}
+
+function updateSizeCm(iid, si, val){
+  const it = items.find(i=>i.id===iid);
+  if(!it) return;
+  const numVal = parseFloat(val) || 0;
+  // Always store internally as CM
+  it.sizes[si].cm = currentUnit==='inch' ? inchToCm(numVal) : numVal;
+  recalcAll();
+}
+
+// ════════════════════════════════════════════════
+// RECALC + SUMMARY
+// ════════════════════════════════════════════════
+function recalcAll(){
+  const rate=parseFloat(document.getElementById('rate').value)||7.25;
+  const mode=document.getElementById('cmode').value;
+
+  items.forEach(it=>{
+    const totalSc=(it.surcharges||[]).reduce((s,sc)=>s+(parseFloat(sc.amt)||0),0);
+    it.sizes.forEach((s,si)=>{
+      const cm=s.cm||20;
+      let p=getPrice(it,cm);
+      const ecny=document.getElementById(`pcny-${it.id}-${si}`);
+      const eusd=document.getElementById(`pusd-${it.id}-${si}`);
+      if(p!==null&&p!==undefined){
+        p+=totalSc;
+        if(ecny)ecny.textContent=mode==='usd'?'':('¥'+p.toFixed(4));
+        if(eusd)eusd.textContent=mode==='cny'?'':('$'+(p/rate).toFixed(4));
+      }else{
+        if(ecny)ecny.textContent='—';
+        if(eusd)eusd.textContent='—';
+      }
+    });
+    const lbl=document.querySelector(`#item-${it.id} .item-label`);
+    if(lbl)lbl.textContent=itemLabel(it);
+  });
+
+  renderSummary(rate,mode);
+}
+
+function renderSummary(rate,mode){
+  const se=document.getElementById('qsum');
+  const validItems=items.filter(it=>{
+    const totalSc=(it.surcharges||[]).reduce((s,sc)=>s+(parseFloat(sc.amt)||0),0);
+    return it.sizes.some(s=>{const p=getPrice(it,s.cm||20);return p!==null&&p!==undefined;});
+  });
+  if(!validItems.length){se.style.display='none';return;}
+  se.style.display='block';
+  let h=`<div class="qsum-title">📋 报价汇总</div>`;
+  validItems.forEach(it=>{
+    const totalSc=(it.surcharges||[]).reduce((s,sc)=>s+(parseFloat(sc.amt)||0),0);
+    // surcharge note
+    const scNote=totalSc>0?` <span style="font-size:11px;color:var(--text-faint);font-weight:400">（含附加费 ¥${totalSc.toFixed(3)}/条）</span>`:'';
+    h+=`<div class="qsum-item">
+      <div class="qsum-item-name">${itemLabel(it)}${scNote}</div>`;
+    it.sizes.forEach(s=>{
+      const cm=s.cm||20;
+      let p=getPrice(it,cm);
+      if(p===null||p===undefined)return;
+      p+=totalSc;
+      const qtyNote='';
+      let priceHtml='';
+      if(mode!=='usd') priceHtml+=`<span class="qsum-price">¥${p.toFixed(4)}</span>`;
+      if(mode!=='cny') priceHtml+=`<span class="qsum-price-usd">$${(p/rate).toFixed(4)}</span>`;
+      h+=`<div class="qsum-size-row">
+        <span class="qsum-size-label">${currentUnit==='inch'?cmToInch(cm)+' inch':cm+' CM'}</span>
+        <span>${priceHtml}</span>
+      </div>`;
+    });
+    h+=`</div>`;
+  });
+  se.innerHTML=h;
+}
+
+// ════════════════════════════════════════════════
+// TAB SWITCHING
+// ════════════════════════════════════════════════
+function switchTab(tab,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  // update both rows of tab buttons
+  document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.includes(tab==='settings'?'价格':'报价'))b.classList.add('active');else b.classList.remove('active');});
+  document.getElementById('panel-'+tab).classList.add('active');
+}
+function switchTypeTab(type,btn){
+  // find parent panel context
+  const parent=btn.closest('.panel,.type-panel')?.parentElement||document;
+  parent.querySelectorAll('.type-tab').forEach(b=>b.classList.remove('active'));
+  parent.querySelectorAll('.type-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  // find matching type panel
+  const candidates=[`type-${type}`,`type-${type}-ro`];
+  candidates.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('active');});
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+(function init(){
+  // Check if agent URL (?plan=xxx)
+  const urlParams=new URLSearchParams(location.search);
+  agentPlanId=urlParams.get('plan')||null;
+
+  // Hide plan manager bar for agents
+  if(agentPlanId){
+    document.getElementById('plan-bar').style.display='none';
+    document.getElementById('btn-auth').style.display='none';
+  }
+
+  addItem();
+
+  // Try saved Firebase config
+  const saved=loadSavedConfig();
+  if(saved&&saved.apiKey&&saved.databaseURL){
+    document.getElementById('cfg-apikey').value=saved.apiKey;
+    document.getElementById('cfg-authdomain').value=saved.authDomain||'';
+    document.getElementById('cfg-dburl').value=saved.databaseURL;
+    document.getElementById('cfg-projectid').value=saved.projectId||'';
+    if(initFirebase(saved)){
+      closeModal('modal-config');
+      return;
+    }
+  }
+  // No config: show config modal
+  showSettingsLock();
+})();
+</script>
+</body>
+</html>
